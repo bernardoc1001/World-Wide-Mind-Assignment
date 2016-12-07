@@ -46,6 +46,7 @@ function Mind() {
         var ei = x[2];
         var ej = x[3];
 
+        /* //commented out to allow user movement
         // if strictly move away, will get stuck at wall, so introduce randomness
 
         if ( ej < aj ) 	return ( randomPick ( ACTION_UP,	randomPick(ACTION_RIGHT,ACTION_LEFT) 	));
@@ -55,7 +56,9 @@ function Mind() {
         if ( ei > ai ) 	return ( randomPick ( ACTION_LEFT,	randomPick(ACTION_UP,ACTION_DOWN) 		));
 
         return  ( randomintAtoB (0,3) );
+        */
     };
+
 }
 
 
