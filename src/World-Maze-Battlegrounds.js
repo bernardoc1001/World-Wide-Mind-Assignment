@@ -98,7 +98,7 @@ const BLANKCOLOR 	= SKYCOLOR ;			// make objects this color until texture arrive
 
 
 
-const show3d = false;						// Switch between 3d and 2d view (both using Three.js)
+const show3d = true;						// Switch between 3d and 2d view (both using Three.js)
 
 const startRadiusConst	 	= MAXPOS * 0.8 ;		// distance from centre to start the camera at
 const skyboxConst			= MAXPOS * 3 ;		// where to put skybox
@@ -281,19 +281,13 @@ function World() {
 
     function loadTextures()
     {
-
-        var loader1 = new THREE.TextureLoader();
-        loader1.load ( '/uploads/humphrys/door.jpg',		function ( thetexture ) {
-            thetexture.minFilter = THREE.LinearFilter;
-            paintWalls ( new THREE.MeshBasicMaterial( { map: thetexture } ) );
-        } );
-
+        /*
         var loader2 = new THREE.TextureLoader();
         loader2.load ( '/uploads/humphrys/latin.jpg',		function ( thetexture ) {
             thetexture.minFilter = THREE.LinearFilter;
             paintMaze ( new THREE.MeshBasicMaterial( { map: thetexture } ) );
         } );
-
+        */
         var loader3 = new THREE.TextureLoader();
         loader3.load ( '/uploads/humphrys/pacman.jpg',	function ( thetexture ) {
             thetexture.minFilter = THREE.LinearFilter;
@@ -313,95 +307,6 @@ function World() {
 
 
 // --- add fixed objects ----------------------------------------
-
-/*
-    function initLogicalWalls()		// set up logical walls in data structure, whether doing graphical run or not
-    {
-        for (var i = 0; i < GRIDSIZE ; i++)
-            for (var j = 0; j < GRIDSIZE ; j++)
-                if ( ( i==0 ) || ( i==GRIDSIZE-1 ) || ( j==0 ) || ( j==GRIDSIZE-1 ) )
-                {
-                    GRID[i][j] = GRID_WALL ;
-                }
-    }
-
-
-    function initThreeWalls()		// graphical run only, set up blank boxes, painted later
-    {
-        var t = 0;
-        for (var i = 0; i < GRIDSIZE ; i++)
-            for (var j = 0; j < GRIDSIZE ; j++)
-                if ( GRID[i][j] == GRID_WALL )
-                {
-                    var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
-                    var thecube  = new THREE.Mesh( shape );
-                    thecube.material.color.setHex( BLANKCOLOR  );
-
-                    thecube.position.x = translate ( i * squaresize );   		// translate my simple (i,j) block-numbering coordinates to three.js (x,y,z) coordinates
-                    thecube.position.z = translate ( j * squaresize );
-                    thecube.position.y =  0;
-
-                    threeworld.scene.add(thecube);
-                    WALLS[t] = thecube;				// save it for later
-                    t++;
-                }
-    }
-
-
-    function paintWalls ( material )
-    {
-        for ( var i = 0; i < WALLS.length; i++ )
-        {
-            if ( WALLS[i] )  WALLS[i].material = material;
-        }
-    }
-
-
-
-
-
-    function initLogicalMaze()
-    {
-        for ( var c=1 ; c <= NOBOXES ; c++ )
-        {
-            var i = randomintAtoB(1,GRIDSIZE-2);	// inner squares are 1 to GRIDSIZE-2
-            var j = randomintAtoB(1,GRIDSIZE-2);
-            GRID[i][j] = GRID_MAZE ;
-        }
-    }
-
-
-    function initThreeMaze()
-    {
-        var t = 0;
-        for (var i = 0; i < GRIDSIZE ; i++)
-            for (var j = 0; j < GRIDSIZE ; j++)
-                if ( GRID[i][j] == GRID_MAZE )
-                {
-                    var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
-                    var thecube  = new THREE.Mesh( shape );
-                    thecube.material.color.setHex( BLANKCOLOR  );
-
-                    thecube.position.x = translate ( i * squaresize );
-                    thecube.position.z = translate ( j * squaresize );
-                    thecube.position.y =  0;
-
-                    threeworld.scene.add(thecube);
-                    MAZE[t] = thecube;		// save it for later
-                    t++;
-                }
-    }
-
-
-    function paintMaze ( material )
-    {
-        for ( var i = 0; i < MAZE.length; i++ )
-        {
-            if ( MAZE[i] )  MAZE[i].material = material;
-        }
-    }
-
-*/
 
     //This function will create the entire logical maze, including all pickups and portals
     function initLogicalMaze()
@@ -582,9 +487,10 @@ function World() {
 
             if (GRID[i][j] == GRID_WALL)
                 {
-                    var shape = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
-                    var theMesh = new THREE.Mesh(shape);
-                    theMesh.material.color.setHex(BLANKCOLOR);
+                    var geometry = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
+                    var material = new THREE.MeshBasicMaterial({color: 0x008000})
+                    var theMesh = new THREE.Mesh(geometry, material);
+                   // theMesh.material.color.setHex(BLANKCOLOR);
 
                     theMesh.position.x = translate ( i * squaresize );
                     theMesh.position.z = translate ( j * squaresize );
@@ -595,33 +501,61 @@ function World() {
                     t++;
                 }
 
-                /*
+
                 else if (GRID[i][j] == GRID_PORTAL)
                 {
-                    var shape = new THREE.CircleGeometry(50, 8);
-                    var theMesh = new THREE.Mesh(shape);
-                    theMesh.material.color.setHex(BLANKCOLOR);
+                    var geometry = new THREE.CircleGeometry(50, 8);
+                    var material = new THREE.MeshBasicMaterial({color: 0x4d0099})
+                    material.side = THREE.DoubleSide; // Without this circles are only viewable from 1 side
+                    var theMesh = new THREE.Mesh(geometry, material);
+                    //theMesh.material.color.setHex(BLANKCOLOR);
+
+                    theMesh.position.x = translate ( i * squaresize );
+                    theMesh.position.z = translate ( j * squaresize );
+                    theMesh.position.y =  0;
+
+                    threeworld.scene.add(theMesh);
+                    MAZE[t] = theMesh;		// save it for later
+                    t++;
                 }
 
                 else if (GRID[i][j] == GRID_DAMAGE_PICKUP)
                 {
-                    var shape = new THREE.OctahedronGeometry(1, 0);
-                    var theMesh = new THREE.Mesh(shape);
-                    theMesh.material.color.setHex(BLANKCOLOR);
+                    var geometry = new THREE.OctahedronGeometry(50, 0);
+                    var material = new THREE.MeshBasicMaterial({color: 0x990000})
+                    var theMesh = new THREE.Mesh(geometry,material);
+                    //theMesh.material.color.setHex(BLANKCOLOR);
+
+                    theMesh.position.x = translate ( i * squaresize );
+                    theMesh.position.z = translate ( j * squaresize );
+                    theMesh.position.y =  0;
+
+                    threeworld.scene.add(theMesh);
+                    MAZE[t] = theMesh;		// save it for later
+                    t++;
                 }
 
                 else if (GRID[i][j] == GRID_HEALTH_PICKUP)
                 {
-                    var shape = new THREE.DodecahedronGeometry(1, 0);
-                    var theMesh = new THREE.Mesh(shape);
-                    theMesh.material.color.setHex(BLANKCOLOR);
+                    var geometry = new THREE.DodecahedronGeometry(50, 0);
+                    var material = new THREE.MeshBasicMaterial({color: 0x00ff00})
+                    var theMesh = new THREE.Mesh(geometry, material);
+                    //theMesh.material.color.setHex(BLANKCOLOR);
+
+                    theMesh.position.x = translate ( i * squaresize );
+                    theMesh.position.z = translate ( j * squaresize );
+                    theMesh.position.y =  0;
+
+                    threeworld.scene.add(theMesh);
+                    MAZE[t] = theMesh;		// save it for later
+                    t++;
                 }
-                */
+
 
             }
     }
 
-
+/*
     function paintMaze ( material )
     {
         for ( var i = 0; i < MAZE.length; i++ )
@@ -629,6 +563,7 @@ function World() {
             if ( MAZE[i] )  MAZE[i].material = material;
         }
     }
+    */
 
 // --- enemy functions -----------------------------------
 
