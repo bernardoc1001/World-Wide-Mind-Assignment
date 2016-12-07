@@ -83,7 +83,7 @@ const		MAXSTEPS 	= 1000;					// length of a run before final score
 
 //---- global constants: -------------------------------------------------------
 
-const GRIDSIZE = 23;	// number of squares along side of world. THIS IS A FIXED SIZE OF 23 FOR THIS MANUALLY MADE MAZE!!!
+const GRIDSIZE = 23;	// number of squares along side of world. THIS IS A FIXED SIZE OF 23 FOR THIS MANUALLY MADE maze!!!
 
 const squaresize = 100;					// size of square in pixels
 const MAXPOS = GRIDSIZE * squaresize;		// length of one side in pixels
@@ -124,6 +124,10 @@ const GRID_PORTAL = 2;
 const GRID_DAMAGE_PICKUP = 3;
 const GRID_HEALTH_PICKUP = 4;
 
+//pickup modifiers
+const DAMAGE_MODIFIER = 5;
+const HEALTH_MODIFIER = 25;
+
 
 // --- some useful random functions  -------------------------------------------
 
@@ -158,18 +162,17 @@ function World() {
     var BOXHEIGHT;		// 3d or 2d box height
 
 
-    var GRID 	= new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
-    console.log('Length: ' + GRID.length);
-    var MAZE 	= new Array ( GRIDSIZE * GRIDSIZE );
+    var GRID = new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
+    var mazeObjects = new Array (GRIDSIZE); //this holds every THREE.js object in the maze (except for the AI), will in fact be initialised as a 2D array
     var theagent, theenemy;
 
 
 // enemy and agent position on squares
     var ei, ej, ai, aj;
 
-    var aDamage = 5;
+    var aDamage = 1;
     var aHealth = 100;
-    var eDamage = 5;
+    var eDamage = 1;
     var eHealth = 100;
 
 
@@ -191,6 +194,7 @@ function World() {
         for (var i = 0; i < GRIDSIZE ; i++)
         {
             GRID[i] = new Array(GRIDSIZE);		// each element is an array
+            mazeObjects[i] = new Array(GRIDSIZE);
 
             for (var j = 0; j < GRIDSIZE ; j++)
             {
@@ -204,7 +208,7 @@ function World() {
         if ( ( ei == i ) && ( ej == j ) ) return true;		// variable objects
         if ( ( ai == i ) && ( aj == j ) ) return true;
 
-        if ( GRID[i][j] == GRID_WALL ) return true;		// fixed objects
+        if ( GRID[i][j] == GRID_WALL ) return true;		// fixed objects and pickups
 
         return false;
     }
@@ -468,89 +472,153 @@ function World() {
 
     function initThreeMaze()
     {
-        var t = 0;
-        for (var i = 0; i < GRIDSIZE ; i++)
-            for (var j = 0; j < GRIDSIZE ; j++) {
-
-            if (GRID[i][j] == GRID_WALL)
-                {
+        for (var i = 0; i < GRIDSIZE ; i++) {
+            for (var j = 0; j < GRIDSIZE; j++) {
+                if (GRID[i][j] == GRID_WALL) {
                     var geometry = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
                     var material = new THREE.MeshBasicMaterial({color: 0x008000})
                     var theMesh = new THREE.Mesh(geometry, material);
-                   // theMesh.material.color.setHex(BLANKCOLOR);
+                    // theMesh.material.color.setHex(BLANKCOLOR);
 
-                    theMesh.position.x = translate ( i * squaresize );
-                    theMesh.position.z = translate ( j * squaresize );
-                    theMesh.position.y =  0;
+                    theMesh.position.x = translate(i * squaresize);
+                    theMesh.position.z = translate(j * squaresize);
+                    theMesh.position.y = 0;
 
                     threeworld.scene.add(theMesh);
-                    MAZE[t] = theMesh;		// save it for later
-                    t++;
+                    mazeObjects[i][j] = theMesh;		// save it for later
+
                 }
 
-
-                else if (GRID[i][j] == GRID_PORTAL)
-                {
+                else if (GRID[i][j] == GRID_PORTAL) {
                     var geometry = new THREE.CircleGeometry(50, 8);
                     var material = new THREE.MeshBasicMaterial({color: 0x4d0099})
                     material.side = THREE.DoubleSide; // Without this circles are only viewable from 1 side
                     var theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
-                    theMesh.position.x = translate ( i * squaresize );
-                    theMesh.position.z = translate ( j * squaresize );
-                    theMesh.position.y =  0;
+                    theMesh.position.x = translate(i * squaresize);
+                    theMesh.position.z = translate(j * squaresize);
+                    theMesh.position.y = 0;
 
                     threeworld.scene.add(theMesh);
-                    MAZE[t] = theMesh;		// save it for later
-                    t++;
+                    mazeObjects[i][j] = theMesh;		// save it for later
                 }
 
-                else if (GRID[i][j] == GRID_DAMAGE_PICKUP)
-                {
+                else if (GRID[i][j] == GRID_DAMAGE_PICKUP) {
                     var geometry = new THREE.OctahedronGeometry(50, 0);
                     var material = new THREE.MeshBasicMaterial({color: 0x990000})
-                    var theMesh = new THREE.Mesh(geometry,material);
+                    var theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
-                    theMesh.position.x = translate ( i * squaresize );
-                    theMesh.position.z = translate ( j * squaresize );
-                    theMesh.position.y =  0;
+                    theMesh.position.x = translate(i * squaresize);
+                    theMesh.position.z = translate(j * squaresize);
+                    theMesh.position.y = 0;
 
                     threeworld.scene.add(theMesh);
-                    MAZE[t] = theMesh;		// save it for later
-                    t++;
+                    mazeObjects[i][j] = theMesh;		// save it for later
+
                 }
 
-                else if (GRID[i][j] == GRID_HEALTH_PICKUP)
-                {
+                else if (GRID[i][j] == GRID_HEALTH_PICKUP) {
                     var geometry = new THREE.DodecahedronGeometry(50, 0);
                     var material = new THREE.MeshBasicMaterial({color: 0x00ff00})
                     var theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
-                    theMesh.position.x = translate ( i * squaresize );
-                    theMesh.position.z = translate ( j * squaresize );
-                    theMesh.position.y =  0;
+                    theMesh.position.x = translate(i * squaresize);
+                    theMesh.position.z = translate(j * squaresize);
+                    theMesh.position.y = 0;
 
                     threeworld.scene.add(theMesh);
-                    MAZE[t] = theMesh;		// save it for later
-                    t++;
+                    mazeObjects[i][j] = theMesh;		// save it for later
                 }
-
-
             }
-    }
-
-/*
-    function paintMaze ( material )
-    {
-        for ( var i = 0; i < MAZE.length; i++ )
-        {
-            if ( MAZE[i] )  MAZE[i].material = material;
         }
     }
-    */
+
+
+// AI interactions with game world (i.e pickups and attacks)
+
+
+
+    function teleport(AIType)
+    {
+        var i, j;
+        do
+        {
+            i = randomintAtoB(1,GRIDSIZE-2);
+            j = randomintAtoB(1,GRIDSIZE-2);
+        }
+        while ( occupied(i,j) && GRID[i][j] != GRID_BLANK);  	  // search for empty square
+
+        if(AIType == 'a')
+        {
+            ai = i;
+            aj = j;
+        }
+        else
+        {
+            ei = i;
+            ej = j;
+        }
+
+    }
+
+    function addModdifier(AIType, modType)
+    {
+        if(modType == GRID_HEALTH_PICKUP) {
+            if (AIType == 'a') {
+                aHealth += HEALTH_MODIFIER;
+            }
+            else
+            {
+                eHealth += HEALTH_MODIFIER;
+            }
+        }
+        else if (modType == GRID_DAMAGE_PICKUP)
+        {
+            if (AIType == 'a') {
+                aDamage += DAMAGE_MODIFIER;
+            }
+            else
+            {
+                eDamage += DAMAGE_MODIFIER;
+            }
+        }
+    }
+
+    function removePickUp(i,j)
+    {
+        GRID[i][j] = GRID_BLANK;
+        threeworld.scene.remove(mazeObjects[i][j]);
+    }
+
+    function useBlockPickup(AIType, i, j) //AI type is either 'a' or 'e' for Agent or Enemy
+    {
+        var blockType = GRID[i][j];
+        if(blockType == GRID_BLANK)
+        {
+            //Do nothing
+        }
+        else {
+            if (blockType == GRID_PORTAL)
+            {
+                teleport(AIType);
+            }
+            else if (blockType == GRID_HEALTH_PICKUP)
+            {
+                addModdifier(AIType, GRID_HEALTH_PICKUP);
+            }
+            else if (blockType == GRID_DAMAGE_PICKUP)
+            {
+                addModdifier(AIType, GRID_DAMAGE_PICKUP);
+            }
+            removePickUp(i, j);
+        }
+    }
+
+
+
 
 // --- enemy functions -----------------------------------
 
@@ -572,17 +640,9 @@ function World() {
 
     function initLogicalEnemy()
     {
-// start in random location:
-        var i, j;
-        do
-        {
-            i = randomintAtoB(1,GRIDSIZE-2);
-            j = randomintAtoB(1,GRIDSIZE-2);
-        }
-        while ( occupied(i,j) );  	  // search for empty square
-
-        ei = i;
-        ej = j;
+        // start in fixed location:
+        ei = 11;
+        ej = 21;
     }
 
 
@@ -611,6 +671,7 @@ function World() {
             ei = i;
             ej = j;
         }
+        useBlockPickup('e',ei,ej);
     }
 
 
@@ -637,17 +698,9 @@ function World() {
 
     function initLogicalAgent()
     {
-// start in random location:
-        var i, j;
-        do
-        {
-            i = randomintAtoB(1,GRIDSIZE-2);
-            j = randomintAtoB(1,GRIDSIZE-2);
-        }
-        while ( occupied(i,j) );  	  // search for empty square
-
-        ai = i;
-        aj = j;
+    // start in fixed location:
+        ai = 11;
+        aj = 1;
     }
 
     function initThreeAgent()
@@ -674,6 +727,8 @@ function World() {
             ai = i;
             aj = j;
         }
+
+        useBlockPickup('a',ai,aj);
     }
 
 
