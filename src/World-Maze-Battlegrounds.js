@@ -42,7 +42,7 @@
 
  */
 
-
+/*
 // =============================================================================================
 // More complex starter World for WWM
 // 3d-effect Maze World (really a 2-D problem)
@@ -69,7 +69,7 @@
 // Scoring on the server side is done by taking average of n runs.
 // Runs where you get trapped and score zero can seriously affect this score.
 // =============================================================================================
-
+*/
 
 
 
@@ -83,14 +83,14 @@ const		MAXSTEPS 	= 1000;					// length of a run before final score
 
 //---- global constants: -------------------------------------------------------
 
-const gridsize = 20;						// number of squares along side of world
+const GRIDSIZE = 23;	// number of squares along side of world. THIS IS A FIXED SIZE OF 23 FOR THIS MANUALLY MADE MAZE!!!
 
-const NOBOXES =  Math.trunc ( (gridsize * gridsize) / 10 );
+const NOBOXES =  Math.trunc ( (GRIDSIZE * GRIDSIZE) / 10 );
 // density of maze - number of internal boxes
 // (bug) use trunc or can get a non-integer
 
 const squaresize = 100;					// size of square in pixels
-const MAXPOS = gridsize * squaresize;		// length of one side in pixels
+const MAXPOS = GRIDSIZE * squaresize;		// length of one side in pixels
 
 const SKYCOLOR 	= 0xddffdd;				// a number, not a string
 const BLANKCOLOR 	= SKYCOLOR ;			// make objects this color until texture arrives (from asynchronous file read)
@@ -98,7 +98,7 @@ const BLANKCOLOR 	= SKYCOLOR ;			// make objects this color until texture arrive
 
 
 
-const show3d = true;						// Switch between 3d and 2d view (both using Three.js)
+const show3d = false;						// Switch between 3d and 2d view (both using Three.js)
 
 const startRadiusConst	 	= MAXPOS * 0.8 ;		// distance from centre to start the camera at
 const skyboxConst			= MAXPOS * 3 ;		// where to put skybox
@@ -122,10 +122,17 @@ const ACTION_STAYSTILL 		= 4;
 
 
 // contents of a grid square
-
+const GRID_BLANK = 0;
+const GRID_WALL = 1;
+const GRID_PORTAL = 2;
+const GRID_DAMAGE_PICKUP = 3;
+const GRID_HEALTH_PICKUP = 4;
+/*
+old grid contents
 const GRID_BLANK 	= 0;
 const GRID_WALL 	= 1;
 const GRID_MAZE 	= 2;
+*/
 
 
 
@@ -170,9 +177,10 @@ function World() {
     var BOXHEIGHT;		// 3d or 2d box height
 
 
-    var GRID 	= new Array(gridsize);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
-    var WALLS 	= new Array ( 4 * gridsize );		// need to keep handles to wall and maze objects so can find them later to paint them
-    var MAZE 	= new Array ( NOBOXES );
+    var GRID 	= new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
+    console.log('Length: ' + GRID.length);
+    //var WALLS 	= new Array ( 4 * GRIDSIZE );		// need to keep handles to wall and maze objects so can find them later to paint them
+    var MAZE 	= new Array ( GRIDSIZE * GRIDSIZE );
     var theagent, theenemy;
 
 
@@ -193,11 +201,11 @@ function World() {
 
     function initGrid()
     {
-        for (var i = 0; i < gridsize ; i++)
+        for (var i = 0; i < GRIDSIZE ; i++)
         {
-            GRID[i] = new Array(gridsize);		// each element is an array
+            GRID[i] = new Array(GRIDSIZE);		// each element is an array
 
-            for (var j = 0; j < gridsize ; j++)
+            for (var j = 0; j < GRIDSIZE ; j++)
             {
                 GRID[i][j] = GRID_BLANK ;
             }
@@ -210,7 +218,6 @@ function World() {
         if ( ( ai == i ) && ( aj == j ) ) return true;
 
         if ( GRID[i][j] == GRID_WALL ) return true;		// fixed objects
-        if ( GRID[i][j] == GRID_MAZE ) return true;
 
         return false;
     }
@@ -257,47 +264,9 @@ function World() {
 
 
 // This does the file read the old way using loadTexture.
-// (todo) Change to asynchronous TextureLoader. A bit complex:
+// todo Change to asynchronous TextureLoader. A bit complex:
 // Make blank skybox. Start 6 asynch file loads to call 6 return functions.
 // Each return function checks if all 6 loaded yet. Once all 6 loaded, paint the skybox.
-
-
-
-
-
-    /*
-     // --- alternative skyboxes: ------------------------------
-
-     // space skybox, credit:
-     // http://en.spaceengine.org/forum/21-514-1
-     // x,y,z labelled differently
-
-     var materialArray = [
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_pos_z.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_neg_z.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_pos_y.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_neg_y.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_pos_x.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/sky_neg_x.jpg" ), side: THREE.BackSide } ) ),
-     ];
-
-     // urban photographic skyboxes, credit:
-     // http://opengameart.org/content/urban-skyboxes
-
-     var materialArray = [
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/posx.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/negx.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/posy.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/negy.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/posz.jpg" ), side: THREE.BackSide } ) ),
-     ( new THREE.MeshBasicMaterial ( { map: THREE.ImageUtils.loadTexture( "/uploads/humphrys/negz.jpg" ), side: THREE.BackSide } ) ),
-     ];
-
-     */
-
-
-
-
 
 
 // --- asynchronous load textures from file ----------------------------------------
@@ -345,12 +314,12 @@ function World() {
 
 // --- add fixed objects ----------------------------------------
 
-
+/*
     function initLogicalWalls()		// set up logical walls in data structure, whether doing graphical run or not
     {
-        for (var i = 0; i < gridsize ; i++)
-            for (var j = 0; j < gridsize ; j++)
-                if ( ( i==0 ) || ( i==gridsize-1 ) || ( j==0 ) || ( j==gridsize-1 ) )
+        for (var i = 0; i < GRIDSIZE ; i++)
+            for (var j = 0; j < GRIDSIZE ; j++)
+                if ( ( i==0 ) || ( i==GRIDSIZE-1 ) || ( j==0 ) || ( j==GRIDSIZE-1 ) )
                 {
                     GRID[i][j] = GRID_WALL ;
                 }
@@ -360,8 +329,8 @@ function World() {
     function initThreeWalls()		// graphical run only, set up blank boxes, painted later
     {
         var t = 0;
-        for (var i = 0; i < gridsize ; i++)
-            for (var j = 0; j < gridsize ; j++)
+        for (var i = 0; i < GRIDSIZE ; i++)
+            for (var j = 0; j < GRIDSIZE ; j++)
                 if ( GRID[i][j] == GRID_WALL )
                 {
                     var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
@@ -395,8 +364,8 @@ function World() {
     {
         for ( var c=1 ; c <= NOBOXES ; c++ )
         {
-            var i = randomintAtoB(1,gridsize-2);	// inner squares are 1 to gridsize-2
-            var j = randomintAtoB(1,gridsize-2);
+            var i = randomintAtoB(1,GRIDSIZE-2);	// inner squares are 1 to GRIDSIZE-2
+            var j = randomintAtoB(1,GRIDSIZE-2);
             GRID[i][j] = GRID_MAZE ;
         }
     }
@@ -405,8 +374,8 @@ function World() {
     function initThreeMaze()
     {
         var t = 0;
-        for (var i = 0; i < gridsize ; i++)
-            for (var j = 0; j < gridsize ; j++)
+        for (var i = 0; i < GRIDSIZE ; i++)
+            for (var j = 0; j < GRIDSIZE ; j++)
                 if ( GRID[i][j] == GRID_MAZE )
                 {
                     var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
@@ -432,11 +401,234 @@ function World() {
         }
     }
 
+*/
+
+    //This function will create the entire logical maze, including all pickups and portals
+    function initLogicalMaze()
+    {
+        //This function is hard-coded for a fixed maze of length 23 across and down.
+        // I will manually make rows 0-11.  Rows 12-22 will be a mirror image of rows 0-10.
+
+        // Note by default each square is already a GRID_BLANK due to initGrid()
+
+        console.log('Start of initLogicalMaze');
+        //row 0
+        for(var i = 0; i < GRIDSIZE; i++)
+        {
+            GRID[i][0] = GRID_WALL;
+        }
+
+        console.log('Start of row 1');
+        //row 1
+        GRID[0][1] = GRID_WALL;
+        GRID[1][1] = GRID_PORTAL;
+        GRID[4][1] = GRID_WALL;
+        GRID[10][1] = GRID_WALL;
+        GRID[12][1] = GRID_WALL;
+        GRID[21][1] = GRID_PORTAL;
+        GRID[22][1] = GRID_WALL;
+
+        console.log('Start of row 2');
+        //row 2
+        GRID[0][2] = GRID_WALL;
+        GRID[2][2] = GRID_WALL;
+
+        for(i = 6; i <= 22; i += 2)
+        {
+            GRID[i][2] = GRID_WALL;
+        }
+
+        console.log('Start of row 3');
+        //row 3
+        GRID[0][3] = GRID_WALL;
+        GRID[2][3] = GRID_WALL;
+        GRID[3][3] = GRID_WALL;
+        GRID[5][3] = GRID_WALL;
+        GRID[6][3] = GRID_WALL;
+        GRID[8][3] = GRID_WALL;
+        GRID[9][3] = GRID_WALL;
+        for(i = 10; i <= 22; i += 2)
+        {
+            GRID[i][3] = GRID_WALL;
+        }
+
+        console.log('Start of row 4');
+        //row 4
+        GRID[0][4] = GRID_WALL;
+        GRID[5][4] = GRID_WALL;
+        GRID[8][4] = GRID_WALL;
+        GRID[22][4] = GRID_WALL;
+
+        console.log('Start of row 5');
+        //row 5
+        GRID[0][5] = GRID_WALL;
+        GRID[1][5] = GRID_WALL;
+        GRID[3][5] = GRID_WALL;
+        GRID[5][5] = GRID_WALL;
+        GRID[7][5] = GRID_WALL;
+        GRID[8][5] = GRID_WALL;
+        for(i = 10; i <= 16; i++)
+        {
+            GRID[i][5] = GRID_WALL;
+        }
+        GRID[17][5] = GRID_HEALTH_PICKUP;
+        GRID[18][5] = GRID_WALL;
+        GRID[19][5] = GRID_WALL;
+        GRID[20][5] = GRID_WALL;
+        GRID[22][5] = GRID_WALL;
+
+        console.log('Start of row 6');
+        //row 6
+        GRID[0][6] = GRID_WALL;
+        GRID[3][6] = GRID_WALL;
+        GRID[5][6] = GRID_WALL;
+        GRID[10][6] = GRID_WALL;
+        GRID[14][6] = GRID_WALL;
+        GRID[16][6] = GRID_WALL;
+        GRID[17][6] = GRID_WALL;
+        GRID[18][6] = GRID_WALL;
+        GRID[22][6] = GRID_WALL;
+
+        console.log('Start of row 7');
+        //row 7
+        GRID[0][7] = GRID_WALL;
+        GRID[2][7] = GRID_WALL;
+        GRID[3][7] = GRID_WALL;
+        GRID[7][7] = GRID_WALL;
+        GRID[9][7] = GRID_WALL;
+        GRID[10][7] = GRID_WALL;
+        GRID[12][7] = GRID_WALL;
+        GRID[14][7] = GRID_WALL;
+        GRID[18][7] = GRID_WALL;
+        GRID[19][7] = GRID_DAMAGE_PICKUP;
+        GRID[20][7] = GRID_WALL;
+        GRID[22][7] = GRID_WALL;
+
+        console.log('Start of row 8');
+        //row 8
+        GRID[0][8] = GRID_WALL;
+        GRID[2][8] = GRID_DAMAGE_PICKUP;
+        GRID[3][8] = GRID_WALL;
+        GRID[4][8] = GRID_WALL;
+        GRID[5][8] = GRID_WALL;
+        GRID[7][8] = GRID_WALL;
+        GRID[12][8] = GRID_WALL;
+        GRID[14][8] = GRID_WALL;
+        GRID[16][8] = GRID_WALL;
+        GRID[18][8] = GRID_WALL;
+        GRID[19][8] = GRID_WALL;
+        GRID[20][8] = GRID_WALL;
+        GRID[22][8] = GRID_WALL;
+
+        console.log('Start of row 9');
+        //row 9
+        GRID[0][9] = GRID_WALL;
+        GRID[2][9] = GRID_WALL;
+        GRID[4][9] = GRID_HEALTH_PICKUP;
+        GRID[5][9] = GRID_WALL;
+        for(i = 7; i <= 10; i++)
+        {
+            GRID[i][9] = GRID_WALL;
+        }
+        GRID[12][9] = GRID_WALL;
+        GRID[16][9] = GRID_WALL;
+        GRID[22][9] = GRID_WALL;
+
+        console.log('Start of row 10');
+        //row 10
+        GRID[0][10] = GRID_WALL;
+        GRID[4][10] = GRID_WALL;
+        GRID[8][10] = GRID_WALL;
+        GRID[10][10] = GRID_WALL;
+        GRID[12][10] = GRID_WALL;
+        GRID[13][10] = GRID_WALL;
+        GRID[15][10] = GRID_WALL;
+        GRID[17][10] = GRID_WALL;
+        GRID[18][10] = GRID_WALL;
+        GRID[20][10] = GRID_WALL;
+        GRID[21][10] = GRID_WALL;
+        GRID[22][10] = GRID_WALL;
+
+        console.log('Start of row 11');
+        //row 11. This is the middle row (it will not be mirrored, only 0-10 will be mirrored)
+        for(var i = 0; i <= 3; i++)
+        {
+            GRID[i][11] = GRID_WALL;
+        }
+        GRID[4][11] = GRID_PORTAL;
+        GRID[6][11] = GRID_WALL;
+        GRID[22][11] = GRID_WALL;
+
+        console.log('Before Mirror');
+        //mirror the remaining rows.
+        var jOld = 10;
+        for(var jNew = 12; jNew < GRIDSIZE; jNew++)
+        {
+            for(i = 0; i < GRIDSIZE; i++)
+            {
+                GRID[i][jNew] = GRID[i][jOld];
+            }
+            jOld--;
+        }
+
+    }
 
 
+    function initThreeMaze()
+    {
+        var t = 0;
+        for (var i = 0; i < GRIDSIZE ; i++)
+            for (var j = 0; j < GRIDSIZE ; j++) {
+
+            if (GRID[i][j] == GRID_WALL)
+                {
+                    var shape = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
+                    var theMesh = new THREE.Mesh(shape);
+                    theMesh.material.color.setHex(BLANKCOLOR);
+
+                    theMesh.position.x = translate ( i * squaresize );
+                    theMesh.position.z = translate ( j * squaresize );
+                    theMesh.position.y =  0;
+
+                    threeworld.scene.add(theMesh);
+                    MAZE[t] = theMesh;		// save it for later
+                    t++;
+                }
+
+                /*
+                else if (GRID[i][j] == GRID_PORTAL)
+                {
+                    var shape = new THREE.CircleGeometry(50, 8);
+                    var theMesh = new THREE.Mesh(shape);
+                    theMesh.material.color.setHex(BLANKCOLOR);
+                }
+
+                else if (GRID[i][j] == GRID_DAMAGE_PICKUP)
+                {
+                    var shape = new THREE.OctahedronGeometry(1, 0);
+                    var theMesh = new THREE.Mesh(shape);
+                    theMesh.material.color.setHex(BLANKCOLOR);
+                }
+
+                else if (GRID[i][j] == GRID_HEALTH_PICKUP)
+                {
+                    var shape = new THREE.DodecahedronGeometry(1, 0);
+                    var theMesh = new THREE.Mesh(shape);
+                    theMesh.material.color.setHex(BLANKCOLOR);
+                }
+                */
+
+            }
+    }
 
 
-
+    function paintMaze ( material )
+    {
+        for ( var i = 0; i < MAZE.length; i++ )
+        {
+            if ( MAZE[i] )  MAZE[i].material = material;
+        }
+    }
 
 // --- enemy functions -----------------------------------
 
@@ -462,8 +654,8 @@ function World() {
         var i, j;
         do
         {
-            i = randomintAtoB(1,gridsize-2);
-            j = randomintAtoB(1,gridsize-2);
+            i = randomintAtoB(1,GRIDSIZE-2);
+            j = randomintAtoB(1,GRIDSIZE-2);
         }
         while ( occupied(i,j) );  	  // search for empty square
 
@@ -530,8 +722,8 @@ function World() {
         var i, j;
         do
         {
-            i = randomintAtoB(1,gridsize-2);
-            j = randomintAtoB(1,gridsize-2);
+            i = randomintAtoB(1,GRIDSIZE-2);
+            j = randomintAtoB(1,GRIDSIZE-2);
         }
         while ( occupied(i,j) );  	  // search for empty square
 
@@ -641,6 +833,7 @@ function World() {
 
     this.newRun = function()
     {
+        console.log('Start Of Run');
 
 // (subtle bug) must reset variables like these inside newRun (in case do multiple runs)
 
@@ -651,9 +844,9 @@ function World() {
 
 
         // for all runs:
-
+        console.log('Before initGrid');
         initGrid();
-        initLogicalWalls();
+        console.log('Before InitLogicalMaze');
         initLogicalMaze();
         initLogicalAgent();
         initLogicalEnemy();
@@ -677,8 +870,7 @@ function World() {
 
 
             // Set up objects first:
-
-            initThreeWalls();
+            console.log('before initThreeMaze');
             initThreeMaze();
             initThreeAgent();
             initThreeEnemy();
@@ -692,7 +884,6 @@ function World() {
 
             document.onkeydown = keyHandler;
         }
-
     };
 
 
