@@ -85,10 +85,6 @@ const		MAXSTEPS 	= 1000;					// length of a run before final score
 
 const GRIDSIZE = 23;	// number of squares along side of world. THIS IS A FIXED SIZE OF 23 FOR THIS MANUALLY MADE MAZE!!!
 
-const NOBOXES =  Math.trunc ( (GRIDSIZE * GRIDSIZE) / 10 );
-// density of maze - number of internal boxes
-// (bug) use trunc or can get a non-integer
-
 const squaresize = 100;					// size of square in pixels
 const MAXPOS = GRIDSIZE * squaresize;		// length of one side in pixels
 
@@ -98,7 +94,7 @@ const BLANKCOLOR 	= SKYCOLOR ;			// make objects this color until texture arrive
 
 
 
-const show3d = true;						// Switch between 3d and 2d view (both using Three.js)
+const show3d = false;						// Switch between 3d and 2d view (both using Three.js)
 
 const startRadiusConst	 	= MAXPOS * 0.8 ;		// distance from centre to start the camera at
 const skyboxConst			= MAXPOS * 3 ;		// where to put skybox
@@ -127,17 +123,6 @@ const GRID_WALL = 1;
 const GRID_PORTAL = 2;
 const GRID_DAMAGE_PICKUP = 3;
 const GRID_HEALTH_PICKUP = 4;
-/*
-old grid contents
-const GRID_BLANK 	= 0;
-const GRID_WALL 	= 1;
-const GRID_MAZE 	= 2;
-*/
-
-
-
-
-
 
 
 // --- some useful random functions  -------------------------------------------
@@ -161,10 +146,6 @@ function randomBoolean()
 
 
 
-
-
-
-
 //---- start of World class -------------------------------------------------------
 
 function World() {
@@ -179,7 +160,6 @@ function World() {
 
     var GRID 	= new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
     console.log('Length: ' + GRID.length);
-    //var WALLS 	= new Array ( 4 * GRIDSIZE );		// need to keep handles to wall and maze objects so can find them later to paint them
     var MAZE 	= new Array ( GRIDSIZE * GRIDSIZE );
     var theagent, theenemy;
 
@@ -187,9 +167,16 @@ function World() {
 // enemy and agent position on squares
     var ei, ej, ai, aj;
 
+    var aDamage = 5;
+    var aHealth = 100;
+    var eDamage = 5;
+    var eHealth = 100;
+
+
     var badsteps;
     var goodsteps;
     var  step;
+
 
     var self = this;						// needed for private fn to call public fn - see below
 
@@ -731,31 +718,18 @@ function World() {
     }
 
 
-    function updateStatusBefore(a)
-// this is called before anyone has moved on this step, agent has just proposed an action
-// update status to show old state and proposed move
+    function   updateStatus()
     {
-        var x = self.getState();
-        var status = " Step: <b> " + step + " </b> &nbsp; x = (" + x.toString() + ") &nbsp; a = (" + a + ") ";
-
-        $("#user_span3").html( status );
-    }
-
-
-    function   updateStatusAfter()		// agent and enemy have moved, can calculate score
-    {
-        // new state after both have moved
-        var y = self.getState();
-        var status = " &nbsp; y = (" + y.toString() + ") <BR> ";
-        $("#user_span4").html( status );
+        var state = self.getState();
+        var aStatus = 'Agent Health:' + '&nbsp;' +  state['aHealth'] + '  ' + 'Agent Attack Damage: ' + '&nbsp;' + state['aDamage'];
+        $("#user_span3").html("Span3: " + aStatus );
 
         var score = self.getScore();
 
-        var status = "   Bad steps: " + badsteps +
-            " &nbsp; Good steps: " + goodsteps +
-            " &nbsp; Score: " + score.toFixed(2) + "% ";
+        var eStatus = 'Enemy Health:' + '&nbsp;' +  state['eHealth'] + '  ' + 'Enemy Attack Damage: ' + '&nbsp;' + state['eDamage'];
+        $("#user_span4").html("Span4: " + eStatus );
 
-        $("#user_span5").html( status );
+        $("#user_span5").html("Span5: " + 'PLACE SCORE HERE');
     }
 
 
@@ -830,7 +804,15 @@ function World() {
 
     this.getState = function()
     {
-        var x = [ ai, aj, ei, ej ];
+        var x = {
+            'ai': ai,
+            'aj': aj,
+            'ei': ei,
+            'ej': ej,
+            'aDamage': aDamage,
+            'aHealth': aHealth,
+            'eDamage': eDamage,
+            'eHealth': eHealth};
         return ( x );
     };
 
@@ -841,7 +823,7 @@ function World() {
         step++;
 
         if ( THREE_RUN  )
-            updateStatusBefore(a);			// show status line before moves
+            updateStatus();			// show status line before moves
 
         moveLogicalAgent(a);
 
@@ -858,7 +840,7 @@ function World() {
         {
             drawAgent();
             drawEnemy();
-            updateStatusAfter();			// show status line after moves
+            updateStatus();			// show status line after moves
         }
 
 
@@ -877,9 +859,9 @@ function World() {
         if ( THREE_RUN  )
         {
             if ( this.endCondition )
-                $("#user_span6").html( " &nbsp; <font color=red> <B> Agent trapped. Final score zero. </B> </font>   "  );
+                $("#user_span6").html( "span6: " + " &nbsp; <font color=red> <B> Agent trapped. Final score zero. </B> </font>   "  );
             else
-                $("#user_span6").html( " &nbsp; <font color=red> <B> Run over. </B> </font>   "  );
+                $("#user_span6").html( "span6: "+ " &nbsp; <font color=red> <B> Run over. </B> </font>   "  );
         }
     };
 
