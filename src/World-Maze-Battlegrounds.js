@@ -608,19 +608,16 @@ function World() {
     }
 
 
-    function moveLogicalEnemy()
+    function moveLogicalEnemy( a )
     {
-// move towards agent
-// put some randomness in so it won't get stuck with barriers
 
-        var i, j;
-        if ( ei < ai ) i = randomintAtoB(ei, ei+1);
-        if ( ei == ai ) i = ei;
-        if ( ei > ai ) i = randomintAtoB(ei-1, ei);
+        var i = ei;
+        var j = ej;
 
-        if ( ej < aj ) j = randomintAtoB(ej, ej+1);
-        if ( ej == aj ) j = ej;
-        if ( ej > aj ) j = randomintAtoB(ej-1, ej);
+        if ( a == ACTION_LEFT ) 	i--;
+        else if ( a == ACTION_RIGHT ) 	i++;
+        else if ( a == ACTION_UP ) 		j++;
+        else if ( a == ACTION_DOWN ) 	j--;
 
         if ( ! occupied(i,j) )  	// if no obstacle then move, else just miss a turn
         {
@@ -698,10 +695,17 @@ function World() {
 // user control
 // Note that this.takeAction(a) is constantly running at same time, redrawing the screen.
     {
-        if (e.keyCode == 37)  moveLogicalAgent ( ACTION_LEFT 	);
-        if (e.keyCode == 38)  moveLogicalAgent ( ACTION_DOWN  	);
-        if (e.keyCode == 39)  moveLogicalAgent ( ACTION_RIGHT 	);
-        if (e.keyCode == 40)  moveLogicalAgent ( ACTION_UP	);
+        //agent key handling, movement is arrow keys
+        if (e.keyCode == 37)  moveLogicalAgent (ACTION_LEFT);
+        if (e.keyCode == 38)  moveLogicalAgent (ACTION_DOWN);
+        if (e.keyCode == 39)  moveLogicalAgent (ACTION_RIGHT);
+        if (e.keyCode == 40)  moveLogicalAgent (ACTION_UP);
+
+        //enemy key handling, movement is WASD keys
+        if (e.keyCode == 65)  moveLogicalEnemy (ACTION_LEFT);
+        if (e.keyCode == 87)  moveLogicalEnemy (ACTION_DOWN);
+        if (e.keyCode == 68)  moveLogicalEnemy (ACTION_RIGHT);
+        if (e.keyCode == 83)  moveLogicalEnemy (ACTION_UP);
     }
 
 
