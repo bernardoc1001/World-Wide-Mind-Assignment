@@ -1,6 +1,19 @@
 /*
  README:
- So far I don't have much (read: anything) to show, but below you can read my plans.
+ Current Control Scheme
+ Action:        Agent Controls:         Enemy Controls
+ Move Up        up arrow                w
+ Move Left      left arrow              a
+ Move Down      down arrow              s
+ Move Right     right arrow             d
+ Attack         Insert key (num 0)      spacebar
+
+ Current Pickup Legend:
+ Portal             purple circle
+ Damage pickup      red octahedron
+ health pickup      green dodecahedron
+
+ Below are my origional plans for the project, I will update this section at the end of the project
 
  What I want to achieve:
  I want to make an arena for two AIs to fight each other.
@@ -31,7 +44,7 @@
 
  Scoring System:
  Each AI's current score is their remaining health + how much damage they inflict on
- their opponent.  If they kill their opponent they get +100 points.  If they die
+ their opponent.  If they survive the run they get +100 points.  If they die
  they lose 50 points.
  There will be some maximum amount of turns to end the game if neither AI dies.
 
@@ -171,19 +184,21 @@ function World() {
         'j': null,
         'attackDamage': 1,
         'attackRange': 1,
-        'damageDealt': 0,
+        'totalDamageDealt': 0,
         'health': 100,
-        'mesh': null
+        'mesh': null,
+        'score': 0
     };
 
     var enemyMap = { //the enemy AIMap
-        'i': null,
-        'j': null,
+        'i': -100,
+        'j': -100,
         'attackDamage': 1,
         'attackRange': 1,
-        'damageDealt': 0,
+        'totalDamageDealt': 0,
         'health': 100,
-        'mesh': null
+        'mesh': null,
+        'score': 0
     };
 
     var badsteps;
@@ -596,24 +611,28 @@ function World() {
         //need to keep track of initial i and j separately from the AI's i and j
         var i = AIMap['i'];
         var j = AIMap['j'];
-        var blockType = GRID[i][j];
-        if(blockType == GRID_BLANK)
+        if(i == null || j == null)
         {
-            //Do nothing
+            //do nothing, the ai is dead ,i.e position is null
         }
-        else
-        {
-            if (blockType == GRID_PORTAL)
+        else {
+            var blockType = GRID[i][j];
+            if (blockType == GRID_BLANK)
             {
-                teleport(AIMap);
-                removePickUp(i, j);
+                //Do nothing, the location contains no pickup
             }
-            else if (blockType == GRID_HEALTH_PICKUP || blockType == GRID_DAMAGE_PICKUP)
-            {
-                addModdifier(AIMap, blockType);
-                removePickUp(i, j);
+            else {
+                if (blockType == GRID_PORTAL)
+                {
+                    teleport(AIMap);
+                    removePickUp(i, j);
+                }
+                else if (blockType == GRID_HEALTH_PICKUP || blockType == GRID_DAMAGE_PICKUP)
+                {
+                    addModdifier(AIMap, blockType);
+                    removePickUp(i, j);
+                }
             }
-
         }
     }
 
@@ -629,12 +648,17 @@ function World() {
         if(targetInRange(attackerAIMap, targetAIMap))
         {
             //todo introduce dice rolls into attack damage
-            targetAIMap['health'] -= attackerAIMap['attackDamage'];
+            var damageDealt = attackerAIMap['attackDamage'];
+            attackerAIMap['totalDamageDealt'] += damageDealt; //damage dealt is saved for scoring purposes
 
-            if(targetAIMap['heath'] <= 0)
+            if(targetAIMap['health'] < damageDealt)
             {
-
+                targetAIMap['heath'] = 0; // don't allow negative health
                 //todo call an end codition function
+            }
+            else
+            {
+                targetAIMap['health'] -= damageDealt;
             }
         }
     }
@@ -669,6 +693,13 @@ function World() {
             moveLogicalAI(thisAIMap,a);
         }
 
+    }
+
+    function removeDeadAI(AIMap)
+    {
+        threeworld.scene.remove(AIMap['mesh']);
+        AIMap['i'] = null;
+        AIMap['j'] = null;
     }
 
 // --- enemy functions -----------------------------------
@@ -766,13 +797,31 @@ function World() {
 
 // --- score: -----------------------------------
 
-
-    function badstep()			// is the enemy within one square of the agent
+    function calculateSingleScore(AIMap)
     {
-        if ( ( Math.abs(enemyMap['i'] - agentMap['i']) < 2 ) && ( Math.abs(enemyMap['j'] - agentMap['j']) < 2 ) ) return true;
-        else return false;
+        var currentScore = AIMap['health'] + AIMap['totalDamageDealt'];
+        if(this.endCondition)
+        {
+            if(AIMap['health'] > 0)
+            {
+                AIMap['score'] = currentScore + 100;
+            }
+            else
+            {
+                AIMap['score'] = currentScore - 50;
+            }
+        }
+        else
+        {
+            AIMap['score'] = currentScore;
+        }
     }
 
+    function calculateScores()
+    {
+        calculateSingleScore(agentMap);
+        calculateSingleScore(enemyMap);
+    }
 
     function agentBlocked()			// agent is blocked on all sides, run over
     {
@@ -785,16 +834,16 @@ function World() {
 
     function   updateStatus()
     {
+        calculateScores();
         var state = self.getState();
         var aStatus = 'Agent Health:' + '&nbsp;' +  state['aHealth'] + '  ' + 'Agent Attack Damage: ' + '&nbsp;' + state['aDamage'];
         $("#user_span3").html("Span3: " + aStatus );
 
-        var score = self.getScore();
 
         var eStatus = 'Enemy Health:' + '&nbsp;' +  state['eHealth'] + '  ' + 'Enemy Attack Damage: ' + '&nbsp;' + state['eDamage'];
         $("#user_span4").html("Span4: " + eStatus );
 
-        $("#user_span5").html("Span5: " + 'PLACE SCORE HERE');
+        $("#user_span5").html("Span5: " + 'Agent Score: ' + '&nbsp;' + agentMap['score'] + ' ' + 'Enemy Score: ' + '&nbsp;' + enemyMap['score']);
     }
 
 
@@ -892,18 +941,13 @@ function World() {
             takeTurnLogicalAI(enemyMap, agentMap, a);
 
 
-        if ( badstep() )
-            badsteps++;
-        else
-            goodsteps++;
-
         if ( THREE_RUN  )
         {
             if(agentMap['health'] > 0) {
                 drawAgent();
             }
             else{
-                threeworld.scene.remove(agentMap['mesh']);
+                removeDeadAI(agentMap);
             }
             if(enemyMap['health'] > 0)
             {
@@ -911,7 +955,7 @@ function World() {
             }
             else
             {
-                threeworld.scene.remove(enemyMap['mesh']);
+                removeDeadAI(enemyMap);
             }
             updateStatus();			// show status line after moves
         }
@@ -939,9 +983,20 @@ function World() {
     };
 
 
+
     this.getScore = function()
     {
-        return ( ( goodsteps / step ) * 100 );
+        //Note that this function gets the highest of the two ai score's.  This is the score that will be displayed
+        //on the world leaderboard, not the one ingame
+
+        if(agentMap['score'] > enemyMap['score'])
+        {
+            return agentMap['score'];
+        }
+        else
+        {
+            return enemyMap['score'];
+        }
     };
 
 
