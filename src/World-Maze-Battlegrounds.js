@@ -108,9 +108,10 @@ const maxRadiusConst 		= MAXPOS * 10  ;		// maximum distance from camera we will
 
 const ACTION_LEFT 		= 0;
 const ACTION_RIGHT 		= 1;
-const ACTION_UP 			= 2;
+const ACTION_UP 		= 2;
 const ACTION_DOWN 		= 3;
-const ACTION_STAYSTILL 		= 4;
+const ACTION_STAYSTILL 	= 4;
+const ACTION_ATTACK     = 5;
 
 // in initial view, (smaller-larger) on i axis is aligned with (left-right)
 // in initial view, (smaller-larger) on j axis is aligned with (away from you - towards you)
@@ -164,17 +165,26 @@ function World() {
 
     var GRID = new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
     var mazeObjects = new Array (GRIDSIZE); //this holds every THREE.js object in the maze (except for the AI), will in fact be initialised as a 2D array
-    var theagent, theenemy;
 
+    var agentMap = { //the agent AIMap
+        'i': null,
+        'j': null,
+        'attackDamage': 1,
+        'attackRange': 1,
+        'damageDealt': 0,
+        'health': 100,
+        'mesh': null
+    };
 
-// enemy and agent position on squares
-    var ei, ej, ai, aj;
-
-    var aDamage = 1;
-    var aHealth = 100;
-    var eDamage = 1;
-    var eHealth = 100;
-
+    var enemyMap = { //the enemy AIMap
+        'i': null,
+        'j': null,
+        'attackDamage': 1,
+        'attackRange': 1,
+        'damageDealt': 0,
+        'health': 100,
+        'mesh': null
+    };
 
     var badsteps;
     var goodsteps;
@@ -205,8 +215,8 @@ function World() {
 
     function occupied ( i, j )		// is this square occupied
     {
-        if ( ( ei == i ) && ( ej == j ) ) return true;		// variable objects
-        if ( ( ai == i ) && ( aj == j ) ) return true;
+        if ( ( enemyMap['i'] == i ) && ( enemyMap['j'] == j ) ) return true;		// variable objects
+        if ( ( agentMap['i'] == i ) && ( agentMap['j'] == j ) ) return true;
 
         if ( GRID[i][j] == GRID_WALL ) return true;		// fixed objects and pickups
 
@@ -282,13 +292,13 @@ function World() {
         var loader3 = new THREE.TextureLoader();
         loader3.load ( '/uploads/humphrys/pacman.jpg',	function ( thetexture ) {
             thetexture.minFilter = THREE.LinearFilter;
-            theagent.material =  new THREE.MeshBasicMaterial( { map: thetexture } );
+            agentMap['mesh'].material =  new THREE.MeshBasicMaterial( { map: thetexture } );
         } );
 
         var loader4 = new THREE.TextureLoader();
         loader4.load ( '/uploads/humphrys/ghost.3.png',	function ( thetexture ) {
             thetexture.minFilter = THREE.LinearFilter;
-            theenemy.material =  new THREE.MeshBasicMaterial( { map: thetexture } );
+            enemyMap['mesh'].material =  new THREE.MeshBasicMaterial( { map: thetexture } );
         } );
 
     }
@@ -307,14 +317,12 @@ function World() {
 
         // Note by default each square is already a GRID_BLANK due to initGrid()
 
-        console.log('Start of initLogicalMaze');
         //row 0
         for(var i = 0; i < GRIDSIZE; i++)
         {
             GRID[i][0] = GRID_WALL;
         }
 
-        console.log('Start of row 1');
         //row 1
         GRID[0][1] = GRID_WALL;
         GRID[1][1] = GRID_PORTAL;
@@ -324,7 +332,6 @@ function World() {
         GRID[21][1] = GRID_PORTAL;
         GRID[22][1] = GRID_WALL;
 
-        console.log('Start of row 2');
         //row 2
         GRID[0][2] = GRID_WALL;
         GRID[2][2] = GRID_WALL;
@@ -334,7 +341,6 @@ function World() {
             GRID[i][2] = GRID_WALL;
         }
 
-        console.log('Start of row 3');
         //row 3
         GRID[0][3] = GRID_WALL;
         GRID[2][3] = GRID_WALL;
@@ -348,14 +354,12 @@ function World() {
             GRID[i][3] = GRID_WALL;
         }
 
-        console.log('Start of row 4');
         //row 4
         GRID[0][4] = GRID_WALL;
         GRID[5][4] = GRID_WALL;
         GRID[8][4] = GRID_WALL;
         GRID[22][4] = GRID_WALL;
 
-        console.log('Start of row 5');
         //row 5
         GRID[0][5] = GRID_WALL;
         GRID[1][5] = GRID_WALL;
@@ -373,7 +377,6 @@ function World() {
         GRID[20][5] = GRID_WALL;
         GRID[22][5] = GRID_WALL;
 
-        console.log('Start of row 6');
         //row 6
         GRID[0][6] = GRID_WALL;
         GRID[3][6] = GRID_WALL;
@@ -385,7 +388,6 @@ function World() {
         GRID[18][6] = GRID_WALL;
         GRID[22][6] = GRID_WALL;
 
-        console.log('Start of row 7');
         //row 7
         GRID[0][7] = GRID_WALL;
         GRID[2][7] = GRID_WALL;
@@ -400,7 +402,6 @@ function World() {
         GRID[20][7] = GRID_WALL;
         GRID[22][7] = GRID_WALL;
 
-        console.log('Start of row 8');
         //row 8
         GRID[0][8] = GRID_WALL;
         GRID[2][8] = GRID_DAMAGE_PICKUP;
@@ -416,7 +417,6 @@ function World() {
         GRID[20][8] = GRID_WALL;
         GRID[22][8] = GRID_WALL;
 
-        console.log('Start of row 9');
         //row 9
         GRID[0][9] = GRID_WALL;
         GRID[2][9] = GRID_WALL;
@@ -430,7 +430,6 @@ function World() {
         GRID[16][9] = GRID_WALL;
         GRID[22][9] = GRID_WALL;
 
-        console.log('Start of row 10');
         //row 10
         GRID[0][10] = GRID_WALL;
         GRID[4][10] = GRID_WALL;
@@ -445,7 +444,6 @@ function World() {
         GRID[21][10] = GRID_WALL;
         GRID[22][10] = GRID_WALL;
 
-        console.log('Start of row 11');
         //row 11. This is the middle row (it will not be mirrored, only 0-10 will be mirrored)
         for(var i = 0; i <= 3; i++)
         {
@@ -455,7 +453,6 @@ function World() {
         GRID[6][11] = GRID_WALL;
         GRID[22][11] = GRID_WALL;
 
-        console.log('Before Mirror');
         //mirror the remaining rows.
         var jOld = 10;
         for(var jNew = 12; jNew < GRIDSIZE; jNew++)
@@ -472,12 +469,15 @@ function World() {
 
     function initThreeMaze()
     {
+        var geometry;
+        var material;
+        var theMesh;
         for (var i = 0; i < GRIDSIZE ; i++) {
             for (var j = 0; j < GRIDSIZE; j++) {
                 if (GRID[i][j] == GRID_WALL) {
-                    var geometry = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
-                    var material = new THREE.MeshBasicMaterial({color: 0x008000})
-                    var theMesh = new THREE.Mesh(geometry, material);
+                    geometry = new THREE.BoxGeometry(squaresize, BOXHEIGHT, squaresize);
+                    material = new THREE.MeshBasicMaterial({color: 0x008000})
+                    theMesh = new THREE.Mesh(geometry, material);
                     // theMesh.material.color.setHex(BLANKCOLOR);
 
                     theMesh.position.x = translate(i * squaresize);
@@ -490,10 +490,10 @@ function World() {
                 }
 
                 else if (GRID[i][j] == GRID_PORTAL) {
-                    var geometry = new THREE.CircleGeometry(50, 8);
-                    var material = new THREE.MeshBasicMaterial({color: 0x4d0099})
+                    geometry = new THREE.CircleGeometry(50, 8);
+                    material = new THREE.MeshBasicMaterial({color: 0x4d0099})
                     material.side = THREE.DoubleSide; // Without this circles are only viewable from 1 side
-                    var theMesh = new THREE.Mesh(geometry, material);
+                    theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
                     theMesh.position.x = translate(i * squaresize);
@@ -505,9 +505,9 @@ function World() {
                 }
 
                 else if (GRID[i][j] == GRID_DAMAGE_PICKUP) {
-                    var geometry = new THREE.OctahedronGeometry(50, 0);
-                    var material = new THREE.MeshBasicMaterial({color: 0x990000})
-                    var theMesh = new THREE.Mesh(geometry, material);
+                    geometry = new THREE.OctahedronGeometry(50, 0);
+                    material = new THREE.MeshBasicMaterial({color: 0x990000})
+                    theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
                     theMesh.position.x = translate(i * squaresize);
@@ -520,9 +520,9 @@ function World() {
                 }
 
                 else if (GRID[i][j] == GRID_HEALTH_PICKUP) {
-                    var geometry = new THREE.DodecahedronGeometry(50, 0);
-                    var material = new THREE.MeshBasicMaterial({color: 0x00ff00})
-                    var theMesh = new THREE.Mesh(geometry, material);
+                    geometry = new THREE.DodecahedronGeometry(50, 0);
+                    material = new THREE.MeshBasicMaterial({color: 0x00ff00})
+                    theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
                     theMesh.position.x = translate(i * squaresize);
@@ -541,7 +541,7 @@ function World() {
 
 
 
-    function teleport(AIType)
+    function teleport(AIMap)
     {
         var i, j;
         do
@@ -551,39 +551,37 @@ function World() {
         }
         while ( occupied(i,j) && GRID[i][j] != GRID_BLANK);  	  // search for empty square
 
-        if(AIType == 'a')
-        {
-            ai = i;
-            aj = j;
-        }
-        else
-        {
-            ei = i;
-            ej = j;
-        }
+        AIMap['i'] = i;
+        AIMap['j'] = j;
 
     }
 
-    function addModdifier(AIType, modType)
+    function addModdifier(AIMap, modType)
     {
         if(modType == GRID_HEALTH_PICKUP) {
-            if (AIType == 'a') {
+            AIMap['health'] += HEALTH_MODIFIER;
+            /*
+            if (AIMap == 'a') {
                 aHealth += HEALTH_MODIFIER;
             }
             else
             {
                 eHealth += HEALTH_MODIFIER;
             }
+            */
         }
         else if (modType == GRID_DAMAGE_PICKUP)
         {
-            if (AIType == 'a') {
+            AIMap['attackDamage'] += DAMAGE_MODIFIER;
+            /*
+            if (AIMap == 'a') {
                 aDamage += DAMAGE_MODIFIER;
             }
             else
             {
                 eDamage += DAMAGE_MODIFIER;
             }
+            */
         }
     }
 
@@ -593,73 +591,58 @@ function World() {
         threeworld.scene.remove(mazeObjects[i][j]);
     }
 
-    function useBlockPickup(AIType, i, j) //AI type is either 'a' or 'e' for Agent or Enemy
+    function useBlockPickup(AIMap)
     {
+        //need to keep track of initial i and j separately from the AI's i and j
+        var i = AIMap['i'];
+        var j = AIMap['j'];
         var blockType = GRID[i][j];
         if(blockType == GRID_BLANK)
         {
             //Do nothing
         }
-        else {
+        else
+        {
             if (blockType == GRID_PORTAL)
             {
-                teleport(AIType);
+                teleport(AIMap);
+                removePickUp(i, j);
             }
-            else if (blockType == GRID_HEALTH_PICKUP)
+            else if (blockType == GRID_HEALTH_PICKUP || blockType == GRID_DAMAGE_PICKUP)
             {
-                addModdifier(AIType, GRID_HEALTH_PICKUP);
+                addModdifier(AIMap, blockType);
+                removePickUp(i, j);
             }
-            else if (blockType == GRID_DAMAGE_PICKUP)
-            {
-                addModdifier(AIType, GRID_DAMAGE_PICKUP);
-            }
-            removePickUp(i, j);
+
         }
     }
 
 
-
-
-// --- enemy functions -----------------------------------
-
-
-    function drawEnemy()	// given ei, ej, draw it
+    function targetInRange(attackerAIMap, targetAIMap)
     {
-        var x = translate ( ei * squaresize );
-        var z = translate ( ej * squaresize );
-        var y =  0;
-
-        theenemy.position.x = x;
-        theenemy.position.y = y;
-        theenemy.position.z = z;
-        threeworld.scene.add(theenemy);
-
-        threeworld.lookat.copy ( theenemy.position );		// if camera moving, look back at where the enemy is
+        var distance = Math.sqrt((targetAIMap['i'] - attackerAIMap['i']) * (targetAIMap['i'] - attackerAIMap['i']) + (targetAIMap['j'] - attackerAIMap['j']) * (targetAIMap['j'] - attackerAIMap['j']))
+        return distance <= attackerAIMap['attackRange'];
     }
 
-
-    function initLogicalEnemy()
+    function attackTarget(attackerAIMap, targetAIMap)
     {
-        // start in fixed location:
-        ei = 11;
-        ej = 21;
+        if(targetInRange(attackerAIMap, targetAIMap))
+        {
+            //todo introduce dice rolls into attack damage
+            targetAIMap['health'] -= attackerAIMap['attackDamage'];
+
+            if(targetAIMap['heath'] <= 0)
+            {
+
+                //todo call an end codition function
+            }
+        }
     }
 
-
-    function initThreeEnemy()
+    function moveLogicalAI(AIMap, a)
     {
-        var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
-        theenemy = new THREE.Mesh( shape );
-        theenemy.material.color.setHex( BLANKCOLOR  );
-        drawEnemy();
-    }
-
-
-    function moveLogicalEnemy( a )
-    {
-
-        var i = ei;
-        var j = ej;
+        var i = AIMap['i'];
+        var j = AIMap['j'];
 
         if ( a == ACTION_LEFT ) 	i--;
         else if ( a == ACTION_RIGHT ) 	i++;
@@ -668,14 +651,59 @@ function World() {
 
         if ( ! occupied(i,j) )  	// if no obstacle then move, else just miss a turn
         {
-            ei = i;
-            ej = j;
+            AIMap['i'] = i;
+            AIMap['j'] = j;
         }
-        useBlockPickup('e',ei,ej);
+        useBlockPickup(AIMap);
+    }
+
+    function takeTurnLogicalAI( thisAIMap, otherAIMap, a )
+    {
+        if(a == ACTION_ATTACK)
+        {
+            attackTarget(thisAIMap,otherAIMap)
+        }
+
+        else
+        {
+            moveLogicalAI(thisAIMap,a);
+        }
+
+    }
+
+// --- enemy functions -----------------------------------
+
+
+    function drawEnemy()	// given i and j, draw it
+    {
+        var x = translate ( enemyMap['i'] * squaresize );
+        var z = translate ( enemyMap['j'] * squaresize );
+        var y =  0;
+
+        enemyMap['mesh'].position.x = x;
+        enemyMap['mesh'].position.y = y;
+        enemyMap['mesh'].position.z = z;
+        threeworld.scene.add(enemyMap['mesh']);
+
+        threeworld.lookat.copy ( enemyMap['mesh'].position );		// if camera moving, look back at where the enemy is
     }
 
 
+    function initLogicalEnemy()
+    {
+        // start in fixed location:
+        enemyMap['i'] = 11;
+        enemyMap['j'] = 21;
+    }
 
+
+    function initThreeEnemy()
+    {
+        var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
+        enemyMap['mesh'] = new THREE.Mesh( shape );
+        enemyMap['mesh'].material.color.setHex( BLANKCOLOR  );
+        drawEnemy();
+    }
 
 
 // --- agent functions -----------------------------------
@@ -683,53 +711,33 @@ function World() {
 
     function drawAgent()	// given ai, aj, draw it
     {
-        var x = translate ( ai * squaresize );
-        var z = translate ( aj * squaresize );
+        var x = translate ( agentMap['i'] * squaresize );
+        var z = translate ( agentMap['j'] * squaresize );
         var y =  0;
 
-        theagent.position.x = x;
-        theagent.position.y = y;
-        theagent.position.z = z;
-        threeworld.scene.add(theagent);
+        agentMap['mesh'].position.x = x;
+        agentMap['mesh'].position.y = y;
+        agentMap['mesh'].position.z = z;
+        threeworld.scene.add(agentMap['mesh']);
 
-        threeworld.follow.copy ( theagent.position );		// follow vector = agent position (for camera following agent)
+        threeworld.follow.copy ( agentMap['mesh'].position );		// follow vector = agent position (for camera following agent)
     }
-
 
     function initLogicalAgent()
     {
     // start in fixed location:
-        ai = 11;
-        aj = 1;
+        agentMap['i'] = 11;
+        agentMap['j'] = 1;
     }
 
     function initThreeAgent()
     {
         var shape    = new THREE.BoxGeometry( squaresize, BOXHEIGHT, squaresize );
-        theagent = new THREE.Mesh( shape );
-        theagent.material.color.setHex( BLANKCOLOR );
+        agentMap['mesh'] = new THREE.Mesh( shape );
+        agentMap['mesh'].material.color.setHex( BLANKCOLOR );
         drawAgent();
     }
 
-
-    function moveLogicalAgent( a )			// this is called by the infrastructure that gets action a from the Mind
-    {
-        var i = ai;
-        var j = aj;
-
-        if ( a == ACTION_LEFT ) 	i--;
-        else if ( a == ACTION_RIGHT ) 	i++;
-        else if ( a == ACTION_UP ) 		j++;
-        else if ( a == ACTION_DOWN ) 	j--;
-
-        if ( ! occupied(i,j) )
-        {
-            ai = i;
-            aj = j;
-        }
-
-        useBlockPickup('a',ai,aj);
-    }
 
 
 
@@ -738,16 +746,18 @@ function World() {
 // Note that this.takeAction(a) is constantly running at same time, redrawing the screen.
     {
         //agent key handling, movement is arrow keys
-        if (e.keyCode == 37)  moveLogicalAgent (ACTION_LEFT);
-        if (e.keyCode == 38)  moveLogicalAgent (ACTION_DOWN);
-        if (e.keyCode == 39)  moveLogicalAgent (ACTION_RIGHT);
-        if (e.keyCode == 40)  moveLogicalAgent (ACTION_UP);
+        if (e.keyCode == 37)  moveLogicalAI (agentMap, ACTION_LEFT);  //left arrow key
+        if (e.keyCode == 38)  moveLogicalAI (agentMap, ACTION_DOWN);  //up arrow key
+        if (e.keyCode == 39)  moveLogicalAI (agentMap, ACTION_RIGHT); //right arrow key
+        if (e.keyCode == 40)  moveLogicalAI (agentMap, ACTION_UP);    //down arrow key
+        if (e.keyCode == 45)  attackTarget  (agentMap, enemyMap);     //insert key
 
         //enemy key handling, movement is WASD keys
-        if (e.keyCode == 65)  moveLogicalEnemy (ACTION_LEFT);
-        if (e.keyCode == 87)  moveLogicalEnemy (ACTION_DOWN);
-        if (e.keyCode == 68)  moveLogicalEnemy (ACTION_RIGHT);
-        if (e.keyCode == 83)  moveLogicalEnemy (ACTION_UP);
+        if (e.keyCode == 65)  moveLogicalAI (enemyMap, ACTION_LEFT);  //a key
+        if (e.keyCode == 87)  moveLogicalAI (enemyMap, ACTION_DOWN);  //w key
+        if (e.keyCode == 68)  moveLogicalAI (enemyMap, ACTION_RIGHT); //d key
+        if (e.keyCode == 83)  moveLogicalAI (enemyMap, ACTION_UP);    //s key
+        if (e.keyCode == 32)  attackTarget  (enemyMap, agentMap);     //space
     }
 
 
@@ -759,17 +769,17 @@ function World() {
 
     function badstep()			// is the enemy within one square of the agent
     {
-        if ( ( Math.abs(ei - ai) < 2 ) && ( Math.abs(ej - aj) < 2 ) ) return true;
+        if ( ( Math.abs(enemyMap['i'] - agentMap['i']) < 2 ) && ( Math.abs(enemyMap['j'] - agentMap['j']) < 2 ) ) return true;
         else return false;
     }
 
 
     function agentBlocked()			// agent is blocked on all sides, run over
     {
-        return ( 	occupied (ai-1,aj) 		&&
-        occupied (ai+1,aj)		&&
-        occupied (  ai,aj+1)		&&
-        occupied (  ai,aj-1) 	);
+        return ( 	occupied (agentMap['i']-1,agentMap['j']) 		&&
+        occupied (agentMap['i']+1,agentMap['j'])		&&
+        occupied (  agentMap['i'],agentMap['j']+1)		&&
+        occupied (  agentMap['i'],agentMap['j']-1) 	);
     }
 
 
@@ -801,8 +811,6 @@ function World() {
 
     this.newRun = function()
     {
-        console.log('Start Of Run');
-
 // (subtle bug) must reset variables like these inside newRun (in case do multiple runs)
 
         this.endCondition = false;
@@ -812,9 +820,7 @@ function World() {
 
 
         // for all runs:
-        console.log('Before initGrid');
         initGrid();
-        console.log('Before InitLogicalMaze');
         initLogicalMaze();
         initLogicalAgent();
         initLogicalEnemy();
@@ -838,7 +844,6 @@ function World() {
 
 
             // Set up objects first:
-            console.log('before initThreeMaze');
             initThreeMaze();
             initThreeAgent();
             initThreeEnemy();
@@ -857,17 +862,18 @@ function World() {
 
 
 
+    //todo work on the state datastructure
     this.getState = function()
     {
         var x = {
-            'ai': ai,
-            'aj': aj,
-            'ei': ei,
-            'ej': ej,
-            'aDamage': aDamage,
-            'aHealth': aHealth,
-            'eDamage': eDamage,
-            'eHealth': eHealth};
+            'ai': agentMap['i'],
+            'aj': agentMap['j'],
+            'ei': enemyMap['i'],
+            'ej': enemyMap['j'],
+            'aDamage': agentMap['attackDamage'],
+            'aHealth': agentMap['health'],
+            'eDamage': enemyMap['attackDamage'],
+            'eHealth': enemyMap['health']};
         return ( x );
     };
 
@@ -880,10 +886,10 @@ function World() {
         if ( THREE_RUN  )
             updateStatus();			// show status line before moves
 
-        moveLogicalAgent(a);
+        takeTurnLogicalAI(agentMap, enemyMap, a);
 
         if ( ( step % 2 ) == 0 )		// slow the enemy down to every nth step
-            moveLogicalEnemy();
+            takeTurnLogicalAI(enemyMap, agentMap, a);
 
 
         if ( badstep() )
@@ -893,8 +899,20 @@ function World() {
 
         if ( THREE_RUN  )
         {
-            drawAgent();
-            drawEnemy();
+            if(agentMap['health'] > 0) {
+                drawAgent();
+            }
+            else{
+                threeworld.scene.remove(agentMap['mesh']);
+            }
+            if(enemyMap['health'] > 0)
+            {
+                drawEnemy();
+            }
+            else
+            {
+                threeworld.scene.remove(enemyMap['mesh']);
+            }
             updateStatus();			// show status line after moves
         }
 
