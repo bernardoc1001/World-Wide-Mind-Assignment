@@ -9,7 +9,7 @@
  Attack         Insert key (num 0)      spacebar
 
  Current Pickup Legend:
- Portal             purple circle
+ Portal             purple sphere
  Damage pickup      red octahedron
  health pickup      green dodecahedron
 
@@ -179,6 +179,7 @@ function World() {
     var GRID = new Array(GRIDSIZE);			// can query GRID about whether squares are occupied, will in fact be initialised as a 2D array
     var mazeObjects = new Array (GRIDSIZE); //this holds every THREE.js object in the maze (except for the AI), will in fact be initialised as a 2D array
 
+    var aiHasDied = false; //When this is set true, do one final score calculation, then set this.endCondition to true.
     var agentMap = { //the agent AIMap
         'i': null,
         'j': null,
@@ -505,9 +506,8 @@ function World() {
                 }
 
                 else if (GRID[i][j] == GRID_PORTAL) {
-                    geometry = new THREE.CircleGeometry(50, 8);
+                    geometry = new THREE.SphereGeometry(50, 32, 32);
                     material = new THREE.MeshBasicMaterial({color: 0x4d0099})
-                    material.side = THREE.DoubleSide; // Without this circles are only viewable from 1 side
                     theMesh = new THREE.Mesh(geometry, material);
                     //theMesh.material.color.setHex(BLANKCOLOR);
 
@@ -649,15 +649,18 @@ function World() {
         {
             //todo introduce dice rolls into attack damage
             var damageDealt = attackerAIMap['attackDamage'];
-            attackerAIMap['totalDamageDealt'] += damageDealt; //damage dealt is saved for scoring purposes
 
-            if(targetAIMap['health'] < damageDealt)
+
+            if(targetAIMap['health'] <= damageDealt)
             {
-                targetAIMap['heath'] = 0; // don't allow negative health
-                //todo call an end codition function
+                attackerAIMap['totalDamageDealt'] += targetAIMap['health']; // Don't let the AI deal damage > the targets health
+                targetAIMap['health'] = 0; // don't allow negative health
+                aiHasDied = true;   //target is dead
+                endRunProcedure(); //target has died, begin procedure to end the run
             }
             else
             {
+                attackerAIMap['totalDamageDealt'] += damageDealt; //damage dealt is saved for scoring purposes
                 targetAIMap['health'] -= damageDealt;
             }
         }
@@ -700,6 +703,12 @@ function World() {
         threeworld.scene.remove(AIMap['mesh']);
         AIMap['i'] = null;
         AIMap['j'] = null;
+    }
+
+    function endRunProcedure()
+    {
+        updateStatus();
+        self.endCondition = true;
     }
 
 // --- enemy functions -----------------------------------
@@ -800,7 +809,7 @@ function World() {
     function calculateSingleScore(AIMap)
     {
         var currentScore = AIMap['health'] + AIMap['totalDamageDealt'];
-        if(this.endCondition)
+        if(aiHasDied)
         {
             if(AIMap['health'] > 0)
             {
@@ -835,15 +844,24 @@ function World() {
     function   updateStatus()
     {
         calculateScores();
-        var state = self.getState();
-        var aStatus = 'Agent Health:' + '&nbsp;' +  state['aHealth'] + '  ' + 'Agent Attack Damage: ' + '&nbsp;' + state['aDamage'];
-        $("#user_span3").html("Span3: " + aStatus );
+        //aligning text without css or bootstrap has made me a broken man, forgive me for what I have done.
+        var scores = 'Agent Score: &nbsp;' + agentMap['score'] + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Enemy Score: ' + '&nbsp;' + enemyMap['score'];
+
+        var aStatus = 'Agent&nbsp;&nbsp;Health:&nbsp;&nbsp;' +  agentMap['health'] + '&nbsp; &nbsp;&nbsp; Agent Attack Damage: &nbsp;' + agentMap['attackDamage'];
+        var eStatus = 'Enemy&nbsp;Health:&nbsp;' +  enemyMap['health'] + '&nbsp; &nbsp; Enemy Attack Damage: &nbsp;' + enemyMap['attackDamage'];
+
+        var aControls = 'Agent Controls:  Move with arrow keys, Attack with insert key (NUM 0)';
+        var eControls = 'Enemy Controls:  Move with WASD, Attack with spacebar ';
+
+        $("#user_span3").html(aStatus  + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + aControls + '<br>' );
 
 
-        var eStatus = 'Enemy Health:' + '&nbsp;' +  state['eHealth'] + '  ' + 'Enemy Attack Damage: ' + '&nbsp;' + state['eDamage'];
-        $("#user_span4").html("Span4: " + eStatus );
+        $("#user_span4").html(eStatus  + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + eControls + '<br>'  );
 
-        $("#user_span5").html("Span5: " + 'Agent Score: ' + '&nbsp;' + agentMap['score'] + ' ' + 'Enemy Score: ' + '&nbsp;' + enemyMap['score']);
+
+        var stepsRemaining = MAXSTEPS - step;
+        $("#user_span5").html(scores + '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Steps Remaining: ' + stepsRemaining );
+
     }
 
 
@@ -936,9 +954,7 @@ function World() {
             updateStatus();			// show status line before moves
 
         takeTurnLogicalAI(agentMap, enemyMap, a);
-
-        if ( ( step % 2 ) == 0 )		// slow the enemy down to every nth step
-            takeTurnLogicalAI(enemyMap, agentMap, a);
+        takeTurnLogicalAI(enemyMap, agentMap, a);
 
 
         if ( THREE_RUN  )
@@ -961,11 +977,11 @@ function World() {
         }
 
 
-        if ( agentBlocked() )			// if agent blocked in, run over
+       /* if (aiHasDied)
         {
-            this.endCondition = true;
-            goodsteps = 0;			// you score zero as far as database is concerned
+            this.endRun();
         }
+        */
 
     };
 
@@ -975,11 +991,9 @@ function World() {
     {
         if ( THREE_RUN  )
         {
-            if ( this.endCondition )
-                $("#user_span6").html( "span6: " + " &nbsp; <font color=red> <B> Agent trapped. Final score zero. </B> </font>   "  );
-            else
-                $("#user_span6").html( "span6: "+ " &nbsp; <font color=red> <B> Run over. </B> </font>   "  );
+                $("#user_span6").html("<font color=red> <B> Run over. </B> </font>   "  );
         }
+
     };
 
 
@@ -991,10 +1005,12 @@ function World() {
 
         if(agentMap['score'] > enemyMap['score'])
         {
+            //console.log('end score = :' + agentMap['score']);
             return agentMap['score'];
         }
         else
         {
+           // console.log('end score = :' + enemyMap['score']);
             return enemyMap['score'];
         }
     };
