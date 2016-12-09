@@ -182,6 +182,7 @@ function World() {
 
     var aiHasDied = false; //When this is set true, do one final score calculation, then set this.endCondition to true.
     var agentMap = { //the agent AIMap
+        'name': 'My name is Agent', //debug purposes
         'i': null,
         'j': null,
         'oldI':null,
@@ -195,10 +196,10 @@ function World() {
         'score': 0,
         'lineOfSight': new Array(GRIDSIZE),
         'trapped':false
-
     };
 
     var enemyMap = { //the enemy AIMap
+        'name': 'My name is Enemy', //debug purposes
         'i': null,
         'j': null,
         'oldI':null,
@@ -641,8 +642,22 @@ function World() {
 
     function targetInRange(attackerAIMap, targetAIMap)
     {
-        var distance = Math.sqrt((targetAIMap['i'] - attackerAIMap['i']) * (targetAIMap['i'] - attackerAIMap['i']) + (targetAIMap['j'] - attackerAIMap['j']) * (targetAIMap['j'] - attackerAIMap['j']))
-        return distance <= attackerAIMap['attackRange'];
+        //cant use distance formula, just judge range on either up and down range or left and right range, no diagonals
+        if(attackerAIMap['i'] == targetAIMap['i'])
+        {
+            if(Math.abs(attackerAIMap['j'] - targetAIMap['j']) <= attackerAIMap['attackRange'])
+                return true;
+            else
+                return false;
+        }
+        if(attackerAIMap['j'] == targetAIMap['j'])
+        {
+            if(Math.abs(attackerAIMap['i'] - targetAIMap['i']) <= attackerAIMap['attackRange'])
+                return true;
+            else
+                return false;
+        }
+        return false;
     }
 
     function attackTarget(attackerAIMap, targetAIMap)
@@ -684,11 +699,13 @@ function World() {
 
         if ( a == ACTION_LEFT ) 	i--;
         else if ( a == ACTION_RIGHT ) 	i++;
-        else if ( a == ACTION_UP ) 		j++;
-        else if ( a == ACTION_DOWN ) 	j--;
+        else if ( a == ACTION_UP ) 		j--;
+        else if ( a == ACTION_DOWN ) 	j++;
+        else if (a == ACTION_STAYSTILL) {/* Do nothing*/}
 
         if ( ! occupied(i,j) )  	// if no obstacle then move, else just miss a turn
         {
+            console.log('no obstacle');
             //Update old i and j first
             AIMap['oldI'] = AIMap['i'];
             AIMap['oldJ'] = AIMap['j'];
@@ -697,12 +714,13 @@ function World() {
             AIMap['i'] = i;
             AIMap['j'] = j;
         }
+        else
+        {console.log('obstacle in my way');}
         useBlockPickup(AIMap);
     }
 
     function takeTurnLogicalAI( thisAIMap, otherAIMap, a )
     {
-        console.log('TakingLogicalTurn');
         if(a == ACTION_ATTACK)
         {
 
@@ -815,18 +833,19 @@ function World() {
 // Note that this.takeAction(a) is constantly running at same time, redrawing the screen.
     {
         //agent key handling, movement is arrow keys
+        if (e.keyCode == 38)  moveLogicalAI (agentMap, ACTION_UP);    //up arrow key
         if (e.keyCode == 37)  moveLogicalAI (agentMap, ACTION_LEFT);  //left arrow key
-        if (e.keyCode == 38)  moveLogicalAI (agentMap, ACTION_DOWN);  //up arrow key
+        if (e.keyCode == 40)  moveLogicalAI (agentMap, ACTION_DOWN);  //down arrow key
         if (e.keyCode == 39)  moveLogicalAI (agentMap, ACTION_RIGHT); //right arrow key
-        if (e.keyCode == 40)  moveLogicalAI (agentMap, ACTION_UP);    //down arrow key
         if (e.keyCode == 45)  attackTarget  (agentMap, enemyMap);     //insert key
 
 
         //enemy key handling, movement is WASD keys
+        if (e.keyCode == 87)  moveLogicalAI (enemyMap, ACTION_UP);    //w key
         if (e.keyCode == 65)  moveLogicalAI (enemyMap, ACTION_LEFT);  //a key
-        if (e.keyCode == 87)  moveLogicalAI (enemyMap, ACTION_DOWN);  //w key
+        if (e.keyCode == 83)  moveLogicalAI (enemyMap, ACTION_DOWN);  //s key
         if (e.keyCode == 68)  moveLogicalAI (enemyMap, ACTION_RIGHT); //d key
-        if (e.keyCode == 83)  moveLogicalAI (enemyMap, ACTION_UP);    //s key
+
         if (e.keyCode == 32)  attackTarget  (enemyMap, agentMap);     //space
     }
 
@@ -1074,14 +1093,14 @@ function World() {
     {
         step++;
 
-
-        console.log('agentAction: ' + a['agentAction']);
-        console.log('enemyAction: ' + a['enemyAction']);
         if ( THREE_RUN  )
             updateStatus();			// show status line before moves
 
-        takeTurnLogicalAI(agentMap, enemyMap, a['agentAction']);
-        takeTurnLogicalAI(enemyMap, agentMap, a['enemyAction']);
+        if(a != undefined && a['agentAction'] != undefined)
+            takeTurnLogicalAI(agentMap, enemyMap, a['agentAction']);
+
+        if(a != undefined && a['enemyAction'] != undefined)
+            takeTurnLogicalAI(enemyMap, agentMap, a['enemyAction']);
 
 
         if ( THREE_RUN  )

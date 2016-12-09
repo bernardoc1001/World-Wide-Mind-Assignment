@@ -1,12 +1,21 @@
 //Note that this mind is controlling two separate AI in the world.  This means that this mind must take in the state of
 //two AI's each turn and return the corresponding action for each AI
 
-function randomPick ( a, b )
+function randomPickFromTwo ( a, b )
 {
     if ( randomBoolean() )
         return a;
     else
         return b;
+}
+
+function randomPickFromArray(array)
+{
+    console.log('ArrayLength: ' + array.length);
+    console.log('firstElement = ' + array[0])
+    //Credit, this single line of code is from stack overflow found here: http://stackoverflow.com/questions/4550505/getting-random-value-from-an-array
+    return rand = array[Math.floor(Math.random() * array.length)];
+
 }
 
 //The available behaviour states
@@ -21,6 +30,7 @@ const F_HIGH = 15;  //used for direction of second priority
 const F_MEDIUM = 10; //used for direction of third priority
 const F_LOW = 5; //used for direction of fourth priority
 const F_VERY_LOW = 0; //used for direction of fifth priority
+const F_VERY_VERY_LOW = -5; //used for previously travelled direction.
 const F_LOWEST = -20; //used for a direction the ai wants to avoid (i.e if running away from the enemy)
 const F_INVALID = -100; //This will mainly be used when the block next to the ai is a wall
 
@@ -67,8 +77,8 @@ function Mind() {
             case B_DAMAGE_HUNTING:
                 prioritiesMap['topPriority'] = GRID_DAMAGE_PICKUP;
                 prioritiesMap['secondPriority'] = GRID_HEALTH_PICKUP;
-                prioritiesMap['thirdPriority'] = GRID_BLANK;
-                prioritiesMap['fourthPriority'] = GRID_PORTAL;
+                prioritiesMap['thirdPriority'] = GRID_PORTAL;
+                prioritiesMap['fourthPriority'] = GRID_BLANK;
                 prioritiesMap['avoidOpponent'] = true;
                 break;
 
@@ -84,8 +94,8 @@ function Mind() {
                 prioritiesMap['topPriority'] = GRID_OPPONENT_OCCUPIED;
                 prioritiesMap['secondPriority'] = GRID_DAMAGE_PICKUP;
                 prioritiesMap['thirdPriority'] = GRID_HEALTH_PICKUP;
-                prioritiesMap['fourthPriority'] = GRID_BLANK;
-                prioritiesMap['fifthPriority'] = GRID_PORTAL;
+                prioritiesMap['fourthPriority'] = GRID_PORTAL;
+                prioritiesMap['fifthPriority'] = GRID_BLANK;
                 prioritiesMap['avoidOpponent'] = false;
                 break;
             //no need to set priorities for fighting, only option is to attack or not be in fighting behaviour state.
@@ -144,6 +154,7 @@ function Mind() {
         {
             return fitness;
         }
+
         while(AIMap['lineOfSight'][curI][curJ] != GRID_WALL && AIMap['lineOfSight'][curI][curJ] != GRID_OPPONENT_OCCUPIED ) //as far as the line of sight goes
         {
             //if block == F_LOWEST then return F_LOWEST
@@ -217,13 +228,16 @@ function Mind() {
             fitness = curBlockBeingCheckedFitness;
         }
 
-
-        if(fitness == F_LOW && AIMap['oldI'] == (AIMap['i'] + iModifier) && AIMap['oldJ'] == (AIMap['j'] + jModifier))
+        curI = AIMap['i'] + iModifier;
+        curJ = AIMap['j'] + jModifier;
+        if((fitness == F_LOW || fitness == F_VERY_LOW) && AIMap['oldI'] == curI && AIMap['oldJ'] == curJ)
         {
             //lower the priority to very low if the direction the AI was last turn doesn't contain a medium or higher priority
             //this will encourage the AI to explore newer directions
-            fitness = F_VERY_LOW;
+            return F_VERY_VERY_LOW;
         }
+
+
 
         return fitness;
     }
@@ -241,25 +255,21 @@ function Mind() {
         var rightFitness = calculateSingleDirectionFitness(AIMap,1,0,p);
 
         var highestFitness = Math.max(upFitness, downFitness, leftFitness, rightFitness);
+        if(highestFitness == F_LOWEST)
+            return ACTION_STAYSTILL;
+        var highestFitnessArray = [];
 
-        switch (highestFitness)
-        {
-            case upFitness:
-                action = ACTION_UP;
-                break;
+        if(upFitness == highestFitness)
+            highestFitnessArray.push(ACTION_UP);
+        if(downFitness == highestFitness)
+            highestFitnessArray.push(ACTION_DOWN);
+        if(leftFitness == highestFitness)
+            highestFitnessArray.push(ACTION_LEFT);
+        if(rightFitness == highestFitness)
+            highestFitnessArray.push(ACTION_RIGHT);
 
-            case downFitness:
-                action = ACTION_DOWN;
-                break;
+        action = randomPickFromArray(highestFitnessArray);
 
-            case leftFitness:
-                action = ACTION_LEFT;
-                break;
-
-            case rightFitness:
-                action = ACTION_RIGHT;
-                break;
-        }
 
         return action;
     }
@@ -267,7 +277,6 @@ function Mind() {
     function pickAction(AIMap)
     {
         var b = selectBehaviourState(AIMap);
-        //todo remember is behaviour is B_FIGHTING then we don't need to check priorities, just attack
         if(b == B_FIGHTING)
         {
             return ACTION_ATTACK;
