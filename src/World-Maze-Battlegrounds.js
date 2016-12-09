@@ -137,6 +137,7 @@ const GRID_WALL = 1;
 const GRID_PORTAL = 2;
 const GRID_DAMAGE_PICKUP = 3;
 const GRID_HEALTH_PICKUP = 4;
+const GRID_OPPONENT_OCCUPIED = 5; //this is only set in an AI's lineOfSight 2d array
 
 //pickup modifiers
 const DAMAGE_MODIFIER = 5;
@@ -183,23 +184,34 @@ function World() {
     var agentMap = { //the agent AIMap
         'i': null,
         'j': null,
+        'oldI':null,
+        'oldJ':null,
         'attackDamage': 1,
         'attackRange': 1,
+        'opponentInRange': false,
         'totalDamageDealt': 0,
         'health': 100,
         'mesh': null,
-        'score': 0
+        'score': 0,
+        'lineOfSight': new Array(GRIDSIZE),
+        'trapped':false
+
     };
 
     var enemyMap = { //the enemy AIMap
-        'i': -100,
-        'j': -100,
+        'i': null,
+        'j': null,
+        'oldI':null,
+        'oldJ':null,
         'attackDamage': 1,
         'attackRange': 1,
+        'opponentInRange': false,
         'totalDamageDealt': 0,
         'health': 100,
         'mesh': null,
-        'score': 0
+        'score': 0,
+        'lineOfSight': new Array(GRIDSIZE),
+        'trapped':false
     };
 
     var badsteps;
@@ -220,7 +232,9 @@ function World() {
         for (var i = 0; i < GRIDSIZE ; i++)
         {
             GRID[i] = new Array(GRIDSIZE);		// each element is an array
-            mazeObjects[i] = new Array(GRIDSIZE);
+            mazeObjects[i] = new Array(GRIDSIZE); //also make the array that tracks maze objects 2d
+            agentMap['lineOfSight'][i] = new Array(GRIDSIZE);  //also make the agent's lineOfSight array 2d
+            enemyMap['lineOfSight'][i] = new Array(GRIDSIZE);  //also make the enemy's lineOfSight array 2d
 
             for (var j = 0; j < GRIDSIZE ; j++)
             {
@@ -566,37 +580,25 @@ function World() {
         }
         while ( occupied(i,j) && GRID[i][j] != GRID_BLANK);  	  // search for empty square
 
+        //set old i and j to null
+        AIMap['oldI'] = null;
+        AIMap['oldJ'] = null;
+
+        //set new position
         AIMap['i'] = i;
         AIMap['j'] = j;
 
     }
 
-    function addModdifier(AIMap, modType)
+    function addModifier(AIMap, modType)
     {
-        if(modType == GRID_HEALTH_PICKUP) {
+        if(modType == GRID_HEALTH_PICKUP)
+        {
             AIMap['health'] += HEALTH_MODIFIER;
-            /*
-            if (AIMap == 'a') {
-                aHealth += HEALTH_MODIFIER;
-            }
-            else
-            {
-                eHealth += HEALTH_MODIFIER;
-            }
-            */
         }
         else if (modType == GRID_DAMAGE_PICKUP)
         {
             AIMap['attackDamage'] += DAMAGE_MODIFIER;
-            /*
-            if (AIMap == 'a') {
-                aDamage += DAMAGE_MODIFIER;
-            }
-            else
-            {
-                eDamage += DAMAGE_MODIFIER;
-            }
-            */
         }
     }
 
@@ -629,7 +631,7 @@ function World() {
                 }
                 else if (blockType == GRID_HEALTH_PICKUP || blockType == GRID_DAMAGE_PICKUP)
                 {
-                    addModdifier(AIMap, blockType);
+                    addModifier(AIMap, blockType);
                     removePickUp(i, j);
                 }
             }
@@ -648,7 +650,15 @@ function World() {
         if(targetInRange(attackerAIMap, targetAIMap))
         {
             //todo introduce dice rolls into attack damage
-            var damageDealt = attackerAIMap['attackDamage'];
+            var damageDealt;
+            if(!aiHasDied) //Stop bug where a dead ai can still attack between them dieing and the run ending
+            {
+                damageDealt = attackerAIMap['attackDamage'];
+            }
+            else
+            {
+                damageDealt = 0;
+            }
 
 
             if(targetAIMap['health'] <= damageDealt)
@@ -656,6 +666,7 @@ function World() {
                 attackerAIMap['totalDamageDealt'] += targetAIMap['health']; // Don't let the AI deal damage > the targets health
                 targetAIMap['health'] = 0; // don't allow negative health
                 aiHasDied = true;   //target is dead
+                removeDeadAI(targetAIMap);
                 endRunProcedure(); //target has died, begin procedure to end the run
             }
             else
@@ -678,6 +689,11 @@ function World() {
 
         if ( ! occupied(i,j) )  	// if no obstacle then move, else just miss a turn
         {
+            //Update old i and j first
+            AIMap['oldI'] = AIMap['i'];
+            AIMap['oldJ'] = AIMap['j'];
+
+            //move the ai the the new position
             AIMap['i'] = i;
             AIMap['j'] = j;
         }
@@ -686,15 +702,22 @@ function World() {
 
     function takeTurnLogicalAI( thisAIMap, otherAIMap, a )
     {
+        console.log('TakingLogicalTurn');
         if(a == ACTION_ATTACK)
         {
-            attackTarget(thisAIMap,otherAIMap)
+
+            attackTarget(thisAIMap,otherAIMap);
         }
 
         else
         {
             moveLogicalAI(thisAIMap,a);
         }
+
+
+        totalLineOfSight(thisAIMap); //get new line of sight at the end of each turn (used in AI minds)
+        aiTrapped(thisAIMap); //check if the ai is trapped at the end of each turn (used in AI minds)
+        thisAIMap['opponentInRange'] = targetInRange(thisAIMap, otherAIMap); //set if target is in range at the end of each turn (used in AI minds)
 
     }
 
@@ -734,6 +757,9 @@ function World() {
         // start in fixed location:
         enemyMap['i'] = 11;
         enemyMap['j'] = 21;
+
+        //get initial line of sight
+        totalLineOfSight(enemyMap);
     }
 
 
@@ -768,6 +794,9 @@ function World() {
     // start in fixed location:
         agentMap['i'] = 11;
         agentMap['j'] = 1;
+
+        //get initial line of sight
+        totalLineOfSight(agentMap);
     }
 
     function initThreeAgent()
@@ -791,6 +820,7 @@ function World() {
         if (e.keyCode == 39)  moveLogicalAI (agentMap, ACTION_RIGHT); //right arrow key
         if (e.keyCode == 40)  moveLogicalAI (agentMap, ACTION_UP);    //down arrow key
         if (e.keyCode == 45)  attackTarget  (agentMap, enemyMap);     //insert key
+
 
         //enemy key handling, movement is WASD keys
         if (e.keyCode == 65)  moveLogicalAI (enemyMap, ACTION_LEFT);  //a key
@@ -832,12 +862,16 @@ function World() {
         calculateSingleScore(enemyMap);
     }
 
-    function agentBlocked()			// agent is blocked on all sides, run over
+    function aiTrapped(AIMap)			// agent is blocked on all sides, run over
     {
-        return ( 	occupied (agentMap['i']-1,agentMap['j']) 		&&
-        occupied (agentMap['i']+1,agentMap['j'])		&&
-        occupied (  agentMap['i'],agentMap['j']+1)		&&
-        occupied (  agentMap['i'],agentMap['j']-1) 	);
+        if( occupied (AIMap['i']-1,AIMap['j']) && occupied (AIMap['i']+1,AIMap['j']) && occupied (AIMap['i'],AIMap['j']+1) && occupied (AIMap['i'],AIMap['j']-1))
+        {
+            AIMap['trapped'] = true;
+        }
+        else
+        {
+            AIMap['trapped'] = false;
+        }
     }
 
 
@@ -865,8 +899,106 @@ function World() {
     }
 
 
+//--- state gathering for the AIs -----------------------------------------------------------------
 
 
+
+    function singleDirectionLineOfSight(AIMap, iModifier, jModifier)
+    {
+        //only 1 modifier should be != 0 in order to look either straight up, down, left or right, and this modifier
+        //should only be either 1 or -1 to avoid skipping squares
+
+        //a line of sight are the straight blocks in a direction plus 1 block on either side of this line
+
+        var curI = AIMap['i'] + iModifier; //add the modifier first to look at square this AI is not occupying
+        var curJ = AIMap['j'] + jModifier; //add the modifier first to look at square this AI is not occupying
+
+        while(!occupied(curI,curJ)) //note an assumption is made here that there is no gaps in the outter wall of the maze here
+        {
+            AIMap['lineOfSight'][curI][curJ] = GRID[curI][curJ];
+
+            if(iModifier != 0)//grab above and below blocks aswell
+            {
+                if(occupied(curI, curJ + 1) && GRID[curI][curJ + 1] != GRID_WALL)//check if the square is occupied by the opponent or a wall
+                {
+                    AIMap['lineOfSight'][curI][curJ + 1] = GRID_OPPONENT_OCCUPIED; //this spot is blocked by the opponent
+                }
+                else
+                {
+                    AIMap['lineOfSight'][curI][curJ + 1] = GRID[curI][curJ + 1];
+                }
+                if(occupied(curI, curJ - 1) && GRID[curI][curJ - 1] != GRID_WALL)//check if the square is occupied by the opponent or a wall
+                {
+                    AIMap['lineOfSight'][curI][curJ - 1] = GRID_OPPONENT_OCCUPIED; //this spot is blocked by the opponent
+                }
+                else
+                {
+                    AIMap['lineOfSight'][curI][curJ - 1] = GRID[curI][curJ - 1];
+                }
+            }
+            else //grab blocks to the left and right aswell
+            {
+                if(occupied(curI + 1, curJ) && GRID[curI + 1][curJ] != GRID_WALL)//check if the square is occupied by the opponent or a wall
+                {
+                    AIMap['lineOfSight'][curI + 1][curJ] = GRID_OPPONENT_OCCUPIED; //this spot is blocked by the opponent
+                }
+                else
+                {
+                    AIMap['lineOfSight'][curI + 1][curJ] = GRID[curI + 1][curJ];
+                }
+
+                if(occupied(curI - 1, curJ) && GRID[curI - 1][curJ] != GRID_WALL)//check if the square is occupied by the opponent or a wall
+                {
+                    AIMap['lineOfSight'][curI - 1][curJ] = GRID_OPPONENT_OCCUPIED; //this spot is blocked by the opponent
+                }
+                else
+                {
+                    AIMap['lineOfSight'][curI - 1][curJ] = GRID[curI - 1][curJ];
+                }
+
+            }
+
+            curI += iModifier;
+            curJ += jModifier;
+        }
+
+        //also add the square (and its neighbours) that is occupied to the line of sight
+        if(occupied(curI, curJ) && GRID[curI][curJ] != GRID_WALL)//check if the square is occupied by the opponent or a wall
+        {
+
+            AIMap['lineOfSight'][curI][curJ] = GRID_OPPONENT_OCCUPIED; //this spot is blocked by the opponent
+        }
+        else
+        {   //the sport is blocked by a wall, not the opponent
+            AIMap['lineOfSight'][curI][curJ] = GRID[curI][curJ];
+        }
+        //next grab the neighbouring two squares
+        if(iModifier != 0)//grab above and below blocks aswell
+        {
+            AIMap['lineOfSight'][curI][curJ + 1] = GRID[curI][curJ + 1];
+            AIMap['lineOfSight'][curI][curJ - 1] = GRID[curI][curJ - 1];
+        }
+        else //grab blocks to the left and right aswell
+        {
+            AIMap['lineOfSight'][curI + 1][curJ] = GRID[curI + 1][curJ];
+            AIMap['lineOfSight'][curI - 1][curJ] = GRID[curI - 1][curJ];
+        }
+    }
+
+    function totalLineOfSight(AIMap)
+    {
+        //get down line of sight
+        singleDirectionLineOfSight(AIMap, 0, 1);
+
+        //get up line of sight
+        singleDirectionLineOfSight(AIMap, 0, -1);
+
+        //get right line of sight
+        singleDirectionLineOfSight(AIMap, 1, 0);
+
+        //get left line of sight
+        singleDirectionLineOfSight(AIMap, -1, 0);
+    }
 
 
 //--- public functions / interface / API ----------------------------------------------------------
@@ -927,20 +1059,12 @@ function World() {
     };
 
 
-
-
-    //todo work on the state datastructure
     this.getState = function()
     {
         var x = {
-            'ai': agentMap['i'],
-            'aj': agentMap['j'],
-            'ei': enemyMap['i'],
-            'ej': enemyMap['j'],
-            'aDamage': agentMap['attackDamage'],
-            'aHealth': agentMap['health'],
-            'eDamage': enemyMap['attackDamage'],
-            'eHealth': enemyMap['health']};
+            'agentMap': agentMap,
+            'enemyMap': enemyMap,
+            };
         return ( x );
     };
 
@@ -950,11 +1074,14 @@ function World() {
     {
         step++;
 
+
+        console.log('agentAction: ' + a['agentAction']);
+        console.log('enemyAction: ' + a['enemyAction']);
         if ( THREE_RUN  )
             updateStatus();			// show status line before moves
 
-        takeTurnLogicalAI(agentMap, enemyMap, a);
-        takeTurnLogicalAI(enemyMap, agentMap, a);
+        takeTurnLogicalAI(agentMap, enemyMap, a['agentAction']);
+        takeTurnLogicalAI(enemyMap, agentMap, a['enemyAction']);
 
 
         if ( THREE_RUN  )
@@ -975,14 +1102,6 @@ function World() {
             }
             updateStatus();			// show status line after moves
         }
-
-
-       /* if (aiHasDied)
-        {
-            this.endRun();
-        }
-        */
-
     };
 
 
