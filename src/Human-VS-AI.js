@@ -304,7 +304,7 @@ function Mind() {
 
     this.getAction = function ( x )		// x is a map containing the agentMap and the enemyMap
     {
-        var agentMove = pickAction(x['agentMap']);
+        var agentMove = undefined; // make it human controlled
         var enemyMove = pickAction(x['enemyMap']);
         var a = {
             'agentAction': agentMove,

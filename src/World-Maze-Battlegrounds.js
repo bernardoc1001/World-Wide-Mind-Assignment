@@ -662,7 +662,7 @@ function World() {
 
     function attackTarget(attackerAIMap, targetAIMap)
     {
-        if(targetInRange(attackerAIMap, targetAIMap))
+        if(attackerAIMap['opponentInRange'])
         {
             //todo introduce dice rolls into attack damage
             var damageDealt;
@@ -674,7 +674,6 @@ function World() {
             {
                 damageDealt = 0;
             }
-
 
             if(targetAIMap['health'] <= damageDealt)
             {
@@ -705,7 +704,6 @@ function World() {
 
         if ( ! occupied(i,j) )  	// if no obstacle then move, else just miss a turn
         {
-            console.log('no obstacle');
             //Update old i and j first
             AIMap['oldI'] = AIMap['i'];
             AIMap['oldJ'] = AIMap['j'];
@@ -714,8 +712,6 @@ function World() {
             AIMap['i'] = i;
             AIMap['j'] = j;
         }
-        else
-        {console.log('obstacle in my way');}
         useBlockPickup(AIMap);
     }
 
@@ -1080,6 +1076,9 @@ function World() {
 
     this.getState = function()
     {
+
+        agentMap['opponentInRange'] = targetInRange(agentMap, enemyMap);
+        enemyMap['opponentInRange'] = targetInRange(enemyMap, agentMap);
         var x = {
             'agentMap': agentMap,
             'enemyMap': enemyMap,
