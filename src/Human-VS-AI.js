@@ -1,5 +1,11 @@
-//Note that this mind is controlling two separate AI in the world.  This means that this mind must take in the state of
-//two AI's each turn and return the corresponding action for each AI
+/*
+ This mind is written for the following world:
+ http://ab.computing.dcu.ie/sys/world.php?world=7255861969
+
+ This mind puts that world in an Human vs AI mode, where this mind controls the action for two one agent in the world
+ and a person can control the other agent.
+
+ */
 
 function randomPickFromTwo ( a, b )
 {

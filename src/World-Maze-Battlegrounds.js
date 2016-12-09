@@ -1,6 +1,26 @@
 /*
  README:
- Current Control Scheme
+
+ Assignment Grading:
+ Author:         Bernard O'Connor
+ Student Number: 14367821
+
+ I would like for this world and the three minds I have written for it to be all considered in
+ the grading.
+ My minds can be found at the following address, ranked by importance:
+        1) AI VS AI: http://ab.computing.dcu.ie/sys/mind.php?mind=4719572275
+        2) Human VS AI: http://ab.computing.dcu.ie/sys/mind.php?mind=9140078057
+        3) Human VS Human: http://ab.computing.dcu.ie/sys/mind.php?mind=4958494060
+
+ Overview:
+ This world is a maze where two agents will fight each other, while also trying to find various pickups have different
+ effects.  This world can be run in different modes depending on which AI you choose to run with the world. The
+ different modes are:
+     1) AI VS AI
+     2) Human VS AI
+     3) Human VS Human
+
+ Current Control Scheme:
  Action:        Agent Controls:         Enemy Controls
  Move Up        up arrow                w
  Move Left      left arrow              a
@@ -9,38 +29,37 @@
  Attack         Insert key (num 0)      spacebar
 
  Current Pickup Legend:
- Portal             purple sphere
- Damage pickup      red octahedron
- health pickup      green dodecahedron
+ Type:              Shape:                  Ability:
+ Portal             purple sphere           Teleports the agent to a random non-occupied location on the map
+ Damage pickup      red octahedron          Increases the attack damage of the agent
+ health pickup      green dodecahedron      Increases the health of the agent
 
- Below are my origional plans for the project, I will update this section at the end of the project
+ AI Behaviour States:
+ There are 4 behaviour states that an AI agent can be in.
+    1) Damage Hunting:
+        This is the starting behaviour of the AI.  The AI will avoid their opponent until they pick up at least
+        one Damage Pickup, simulating the AI desperately searching for a starting weapon to defend themself with.
+        They will also keep an eye out for Health Pickups, as they are always useful.
 
- What I want to achieve:
- I want to make an arena for two AIs to fight each other.
- I want there to be a health system (100 hitpoints) and I want the behaviour of the
- AIs to change based on both their health and the items they pick
- up.
+    2) Opponent Hunting:
+        After an AI has found a damage pickup, they will start hunting down their opponent.
 
- Behaviour:
- -> both AI start with nothing
- -> hunt for weapons
- -> run from opponent
+    3) Fighting:
+        Once the AI has either found their opponent after they have been hunting them, or if the AI has been
+        hunted down and trapped by their opponent, they will then fight their opponent.  If their health drops
+        below 25 then if they are not trapped they will run away from their opponent in search of Health.  If they are
+        trapped then they will fight to the death.
 
- -> AI finds a weapon
- -> start hunting opponent
- -> keep an eye out for a better weapon (lower priority than hunting opponent)
+    4) Health Hunting:
+        Once an AI's health has fallen below 25 they will look for health pickups if they are able. Once they have
+        found a health pickup they will then enter either the Damage Hunting state or the Opponent Hunting state,
+        depending on if they have previously found a damage pickup before their health had dropped below 25.
 
- -> if health is < 25% use one of their limited "Disengage moves", i.e get a turn or two headstart to runaway
- -> hunt for a health pickup && run from opponent
-
- -> I am considering adding single use portals on the map.  If an AI is fleeing, a portal will have a
- higher priority than an empty corridor, as the opponent won't be able to follow them through the
- portal
-
- -> I want to try and make the AI recognise walls and try to avoid dead ends.  If the AI is trapped in a
- dead end then they will be forced to fight their opponent with whatever weapon they have or else with no
- weapons i.e, fight with their "fists"
-
+  The AI is able to navigate through the maze through the use of a "line of sight" system in conjunction with the
+  above behaviour states.  A "line of sight" is a line that is three blocks wide and extends from each direction
+  of the AI until their view is blocked by either a wall or by the opposing agent.  The AI bases its action decision
+  making both off of the information it is able to see from its "line of sight" and on certain other factors such as
+  its current health and attack damage.
 
  Scoring System:
  Each AI's current score is their remaining health + how much damage they inflict on
@@ -48,45 +67,21 @@
  they lose 50 points.
  There will be some maximum amount of turns to end the game if neither AI dies.
 
- Combat:
- -> When the AI is in range of their opponent there will be a dice roll to see if they hit or miss.
- -> weapons will have a lower damage value and an upper damage value.  On hit with will be a dice
- roll on the damage dealt within that range.
+ Combat System:
+ When an agent is in range of their opponent and is in the FIGHTING behaviour, they will subtract their attack damage
+ from the opponent's health.
+
+ Future Improvements:
+ I have attempted to write this assignment in such a way where it can be expanded upon in the future.  Some refactoring
+ will have to be done at a later stage in some areas to improve upon this.
+ One example of an improvement I would like to make is to add a dice roll system to the amount of damage dealt by
+ an agent, so that it is a variable number.  The damage pickups would then serve to improve this diceroll number
+ by maybe providing an extra damage dice to roll, or just to add a fixed amount of damage to the dice.
+
+ Another improvement would be to let the AI use a built up memory of the maze in their decision making rather than just
+ on their line of sight.
 
  */
-
-/*
-// =============================================================================================
-// More complex starter World for WWM
-// 3d-effect Maze World (really a 2-D problem)
-// Mark Humphrys, 2016.
-//
-// This more complex World shows:
-// - Skybox
-// - Internal maze (randomly drawn each time)
-// - Enemy actively chases agent
-// - 2D world (clone this and set show3d = false)
-// - User keyboard control (clone this and comment out Mind actions to see)
-// =============================================================================================
-
-
-// =============================================================================================
-// Scoring:
-// Bad steps = steps where enemy is within one step of agent.
-// Good steps = steps where enemy is further away.
-// Score = good steps as percentage of all steps.
-//
-// There are situations where agent is trapped and cannot move.
-// If this happens, you score zero.
-//
-// Scoring on the server side is done by taking average of n runs.
-// Runs where you get trapped and score zero can seriously affect this score.
-// =============================================================================================
-*/
-
-
-
-
 
 // World must define these:
 
