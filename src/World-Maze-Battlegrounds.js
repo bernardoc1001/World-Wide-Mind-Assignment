@@ -54,6 +54,9 @@
         Once an AI's health has fallen below 25 they will look for health pickups if they are able. Once they have
         found a health pickup they will then enter either the Damage Hunting state or the Opponent Hunting state,
         depending on if they have previously found a damage pickup before their health had dropped below 25.
+        One thing to note is that if both AI manage to get into this mode, they will both run away from each other, and
+        if there is no health left on the map, they will not fight each other.  This is not an issue however, as both
+        agents will still recieve a score based on how much damage they dealt and how much health they have left.
 
   The AI is able to navigate through the maze through the use of a "line of sight" system in conjunction with the
   above behaviour states.  A "line of sight" is a line that is three blocks wide and extends from each direction
@@ -66,6 +69,7 @@
  their opponent.  If they survive the run they get +100 points.  If they die
  they lose 50 points.
  There will be some maximum amount of turns to end the game if neither AI dies.
+ For the overall world scoreboard, the highest of the two scores produced in this run is given.
 
  Combat System:
  When an agent is in range of their opponent and is in the FIGHTING behaviour, they will subtract their attack damage
